@@ -11,14 +11,19 @@ type Config struct {
 	Botastic BotasticConfig `yaml:"botastic"`
 }
 
-type BotasticConfig struct {
-	AppId     string
-	AppSecret string
-	Host      string
-	Debug     bool
+func (s *Config) String() string {
+	data, _ := yaml.Marshal(s)
+	return string(data)
 }
 
-func defaultConfig() *Config {
+type BotasticConfig struct {
+	AppId     string `yaml:"app_id"`
+	AppSecret string `yaml:"app_secret"`
+	Host      string `yaml:"host"`
+	Debug     bool   `yaml:"debug"`
+}
+
+func DefaultConfig() *Config {
 	return &Config{}
 }
 
@@ -27,7 +32,7 @@ func (c Config) validate() error {
 }
 
 func Init(fp string) (*Config, error) {
-	c := defaultConfig()
+	c := DefaultConfig()
 
 	data, err := ioutil.ReadFile(fp)
 	if err != nil {
