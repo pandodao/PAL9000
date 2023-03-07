@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/pandodao/PAL9000/config"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -14,7 +15,7 @@ type Suite struct {
 }
 
 func TestSuite(t *testing.T) {
-	client := New(Config{
+	client := New(config.BotasticConfig{
 		AppId:     os.Getenv("BOTASTIC_APP_ID"),
 		AppSecret: os.Getenv("BOTASTIC_APP_SECRET"),
 		Host:      os.Getenv("BOTASTIC_HOST"),
