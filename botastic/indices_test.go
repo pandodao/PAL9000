@@ -2,38 +2,7 @@ package botastic
 
 import (
 	"context"
-	"os"
-	"testing"
-
-	"github.com/pandodao/PAL9000/config"
-	"github.com/stretchr/testify/suite"
 )
-
-type Suite struct {
-	suite.Suite
-	client *Client
-}
-
-func TestSuite(t *testing.T) {
-	client := New(config.BotasticConfig{
-		AppId:     os.Getenv("BOTASTIC_APP_ID"),
-		AppSecret: os.Getenv("BOTASTIC_APP_SECRET"),
-		Host:      os.Getenv("BOTASTIC_HOST"),
-		Debug:     true,
-	})
-	if client.cfg.AppId == "" || client.cfg.AppSecret == "" || client.cfg.Host == "" {
-		t.SkipNow()
-	}
-
-	suite.Run(t, &Suite{client: client})
-}
-
-func (s *Suite) TestSearchIndices() {
-	_, err := s.client.SearchIndices(context.Background(), SearchIndicesRequest{
-		Keywords: "test",
-	})
-	s.NoError(err)
-}
 
 func (s *Suite) TestCreateIndices() {
 	err := s.client.CreateIndices(context.Background(), CreateIndicesRequest{
@@ -51,5 +20,12 @@ func (s *Suite) TestCreateIndices() {
 
 func (s *Suite) TestDeleteIndex() {
 	err := s.client.DeleteIndex(context.Background(), "test-object-id")
+	s.NoError(err)
+}
+
+func (s *Suite) TestSearchIndices() {
+	_, err := s.client.SearchIndices(context.Background(), SearchIndicesRequest{
+		Keywords: "test",
+	})
 	s.NoError(err)
 }

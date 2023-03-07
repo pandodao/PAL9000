@@ -73,7 +73,8 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 		return nil
 	}
 
-	if user.IdentityNumber != "0" && !strings.HasPrefix(user.IdentityNumber, "700") {
+	if user.IdentityNumber == "0" || strings.HasPrefix(user.IdentityNumber, "700") {
+		log.Println("user is not a messenger user, ignored")
 		return nil
 	}
 
@@ -95,6 +96,7 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 		UserIdentity: msg.UserID,
 		ConvKey:      msg.ConversationID + ":" + msg.UserID,
 		Content:      string(data),
+		Lang:         "zh",
 	}, func(turn *botastic.ConvTurn, err error) error {
 		mq := &mixin.MessageRequest{
 			ConversationID: msg.ConversationID,
@@ -109,18 +111,16 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 			text = turn.Response
 		}
 		if isGroup {
-			text = prefix + " " + text
+			text = fmt.Sprintf(">  %s\n\n%s", content, text)
 		}
 		mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
+		// fmt.Println(content)
+		// fmt.Println(text)
 		b.client.SendMessage(ctx, mq)
 		return nil
 	})
 
 	return nil
-}
-
-func (b *Bot) respondError(ctx context.Context, msg *mixin.MessageView, err error) {
-
 }
 
 func (b *Bot) getConversation(ctx context.Context, convID string) (*mixin.Conversation, error) {

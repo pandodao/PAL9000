@@ -77,7 +77,7 @@ func (c *Client) CreateConversation(ctx context.Context, req CreateConversationR
 
 func (c *Client) GetConversation(ctx context.Context, conversationID string) (*Conversation, error) {
 	conv := &Conversation{}
-	if err := c.request(ctx, http.MethodDelete, "/conversations/"+conversationID, nil, conv); err != nil {
+	if err := c.request(ctx, http.MethodGet, "/conversations/"+conversationID, nil, conv); err != nil {
 		return nil, err
 	}
 
@@ -103,7 +103,7 @@ func (c *Client) UpdateConversation(ctx context.Context, req UpdateConversationR
 
 func (c *Client) GetHandledConvTurn(ctx context.Context, conversationID string, turnID uint64) (*ConvTurn, error) {
 	conv := &ConvTurn{}
-	if err := c.request(ctx, http.MethodPut, fmt.Sprintf("/conversations/%s/%d", conversationID, turnID), nil, conv); err != nil {
+	if err := c.request(ctx, http.MethodGet, fmt.Sprintf("/conversations/%s/%d", conversationID, turnID), nil, conv); err != nil {
 		return nil, err
 	}
 	return conv, nil
