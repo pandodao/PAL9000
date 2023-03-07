@@ -1,4 +1,4 @@
-package pal9000
+package service
 
 import (
 	"context"

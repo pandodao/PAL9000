@@ -1,59 +1,18 @@
-package main
+package mixinbot
 
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/fox-one/mixin-sdk-go"
 	"github.com/fox-one/pkg/uuid"
-	pal9000 "github.com/pandodao/PAL9000"
 	"github.com/pandodao/PAL9000/botastic"
-	"github.com/pandodao/PAL9000/config"
-	"github.com/pandodao/PAL9000/store"
+	pal9000 "github.com/pandodao/PAL9000/service"
 )
-
-var keystorePath = flag.String("k", "keystore.json", "keystore file path")
-var configPath = flag.String("c", "config.yaml", "config file path")
-
-func main() {
-	flag.Parse()
-	cfg, err := config.Init(*configPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	data, err := os.ReadFile(*keystorePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var keystore mixin.Keystore
-	if err := json.Unmarshal(data, &keystore); err != nil {
-		log.Fatal(err)
-	}
-
-	client, err := mixin.NewFromKeystore(&keystore)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	h := pal9000.NewHandler(botastic.New(cfg.Botastic), store.NewMemoryStore())
-
-	ctx := context.Background()
-	b := New(client, h)
-	if err := b.setUserMe(ctx); err != nil {
-		log.Fatal(err)
-	}
-
-	b.Run(ctx)
-}
 
 type Bot struct {
 	convMap map[string]*mixin.Conversation
@@ -73,7 +32,7 @@ func New(client *mixin.Client, handler *pal9000.Handler) *Bot {
 	}
 }
 
-func (b *Bot) setUserMe(ctx context.Context) error {
+func (b *Bot) SetUserMe(ctx context.Context) error {
 	me, err := b.client.UserMe(ctx)
 	if err != nil {
 		return fmt.Errorf("client.UserMe error: %v", err)
