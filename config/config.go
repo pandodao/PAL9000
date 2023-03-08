@@ -8,12 +8,18 @@ import (
 )
 
 type Config struct {
+	Bot      BotConfig      `yaml:"bot_config"`
 	Botastic BotasticConfig `yaml:"botastic"`
 }
 
 func (s *Config) String() string {
 	data, _ := yaml.Marshal(s)
 	return string(data)
+}
+
+type BotConfig struct {
+	BotID uint64 `yaml:"bot_id"`
+	Lang  string `yaml:"lang"`
 }
 
 type BotasticConfig struct {
@@ -24,7 +30,11 @@ type BotasticConfig struct {
 }
 
 func DefaultConfig() *Config {
-	return &Config{}
+	return &Config{
+		Bot: BotConfig{
+			Lang: "en",
+		},
+	}
 }
 
 func (c Config) validate() error {

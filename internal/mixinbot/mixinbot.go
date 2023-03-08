@@ -11,6 +11,7 @@ import (
 	"github.com/fox-one/mixin-sdk-go"
 	"github.com/fox-one/pkg/uuid"
 	"github.com/pandodao/PAL9000/botastic"
+	"github.com/pandodao/PAL9000/config"
 	pal9000 "github.com/pandodao/PAL9000/service"
 )
 
@@ -21,14 +22,16 @@ type Bot struct {
 	client  *mixin.Client
 	me      *mixin.User
 	handler *pal9000.Handler
+	botCfg  config.BotConfig
 }
 
-func New(client *mixin.Client, handler *pal9000.Handler) *Bot {
+func New(client *mixin.Client, handler *pal9000.Handler, botCfg config.BotConfig) *Bot {
 	return &Bot{
 		convMap: make(map[string]*mixin.Conversation),
 		userMap: make(map[string]*mixin.User),
 		client:  client,
 		handler: handler,
+		botCfg:  botCfg,
 	}
 }
 
@@ -92,11 +95,11 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 	}
 
 	b.handler.HandleWithCallback(ctx, &pal9000.Message{
-		BotID:        2,
+		BotID:        b.botCfg.BotID,
 		UserIdentity: msg.UserID,
 		ConvKey:      msg.ConversationID + ":" + msg.UserID,
 		Content:      string(data),
-		Lang:         "zh",
+		Lang:         b.botCfg.Lang,
 	}, func(turn *botastic.ConvTurn, err error) error {
 		mq := &mixin.MessageRequest{
 			ConversationID: msg.ConversationID,

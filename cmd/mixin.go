@@ -53,7 +53,7 @@ to quickly create a Cobra application.`,
 
 		h := service.NewHandler(botastic.New(cfg.Botastic), store.NewMemoryStore())
 
-		b := mixinbot.New(client, h)
+		b := mixinbot.New(client, h, cfg.Bot)
 		ctx := cmd.Context()
 		if err := b.SetUserMe(ctx); err != nil {
 			return err
