@@ -114,7 +114,7 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 			text = turn.Response
 		}
 		if isGroup {
-			text = fmt.Sprintf(">  %s\n\n%s", content, text)
+			text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, content, text)
 		}
 		mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
 		// fmt.Println(content)

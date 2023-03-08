@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	Bot      BotConfig      `yaml:"bot_config"`
+	Bot      BotConfig      `yaml:"bot"`
 	Botastic BotasticConfig `yaml:"botastic"`
 }
 
