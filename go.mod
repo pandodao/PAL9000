@@ -5,14 +5,14 @@ go 1.19
 require (
 	github.com/fox-one/mixin-sdk-go v1.7.3
 	github.com/fox-one/pkg/uuid v0.0.1
-	github.com/stretchr/testify v1.8.2
+	github.com/pandodao/botastic-go v0.0.0-20230315152902-181531115667
+	github.com/spf13/cobra v1.6.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fox-one/msgpack v1.0.0 // indirect
 	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
@@ -21,9 +21,7 @@ require (
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
-	github.com/spf13/cobra v1.6.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect

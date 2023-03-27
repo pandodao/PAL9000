@@ -10,9 +10,9 @@ import (
 
 	"github.com/fox-one/mixin-sdk-go"
 	"github.com/fox-one/pkg/uuid"
-	"github.com/pandodao/PAL9000/botastic"
 	"github.com/pandodao/PAL9000/config"
 	pal9000 "github.com/pandodao/PAL9000/service"
+	"github.com/pandodao/botastic-go"
 )
 
 type Bot struct {

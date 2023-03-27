@@ -8,11 +8,11 @@ import (
 	"os"
 
 	"github.com/fox-one/mixin-sdk-go"
-	"github.com/pandodao/PAL9000/botastic"
 	"github.com/pandodao/PAL9000/config"
 	"github.com/pandodao/PAL9000/internal/mixinbot"
 	"github.com/pandodao/PAL9000/service"
 	"github.com/pandodao/PAL9000/store"
+	"github.com/pandodao/botastic-go"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +51,7 @@ to quickly create a Cobra application.`,
 			return err
 		}
 
-		h := service.NewHandler(botastic.New(cfg.Botastic), store.NewMemoryStore())
+		h := service.NewHandler(botastic.New(cfg.Botastic.AppId, cfg.Botastic.AppSecret), store.NewMemoryStore())
 
 		b := mixinbot.New(client, h, cfg.Bot)
 		ctx := cmd.Context()

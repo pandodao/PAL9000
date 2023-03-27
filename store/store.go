@@ -3,7 +3,7 @@ package store
 import (
 	"sync"
 
-	"github.com/pandodao/PAL9000/botastic"
+	"github.com/pandodao/botastic-go"
 )
 
 type Store interface {

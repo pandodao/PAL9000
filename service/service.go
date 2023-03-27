@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/pandodao/PAL9000/botastic"
 	"github.com/pandodao/PAL9000/store"
+	"github.com/pandodao/botastic-go"
 )
 
 type Handler struct {
