@@ -1,6 +1,3 @@
-/*
-Copyright © 2023 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -51,16 +48,14 @@ to quickly create a Cobra application.`,
 			return err
 		}
 
-		h := service.NewHandler(botastic.New(cfg.Botastic.AppId, cfg.Botastic.AppSecret), store.NewMemoryStore())
-
-		b := mixinbot.New(client, h, cfg.Bot)
 		ctx := cmd.Context()
+		b := mixinbot.New(client, cfg.Bot)
 		if err := b.SetUserMe(ctx); err != nil {
 			return err
 		}
+		h := service.NewHandler(botastic.New(cfg.Botastic.AppId, cfg.Botastic.AppSecret), store.NewMemoryStore(), b)
 
-		b.Run(ctx)
-		return nil
+		return h.Run(ctx)
 	},
 }
 

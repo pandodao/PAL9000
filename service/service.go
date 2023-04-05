@@ -5,11 +5,19 @@ import (
 
 	"github.com/pandodao/PAL9000/store"
 	"github.com/pandodao/botastic-go"
+	"golang.org/x/sync/errgroup"
 )
 
+type Adaptor interface {
+	GetMessageChan() <-chan *Message
+	HandleResult(ctx context.Context, t *botastic.ConvTurn, err error) error
+	Start(ctx context.Context) error
+}
+
 type Handler struct {
-	client *botastic.Client
-	store  store.Store
+	client  *botastic.Client
+	store   store.Store
+	adaptor Adaptor
 }
 
 type Message struct {
@@ -18,20 +26,42 @@ type Message struct {
 	ConvKey      string
 	Content      string
 	Lang         string
+	Resp         *botastic.ConvTurn
 }
 
-func NewHandler(client *botastic.Client, store store.Store) *Handler {
+func NewHandler(client *botastic.Client, store store.Store, adaptor Adaptor) *Handler {
 	return &Handler{
-		client: client,
-		store:  store,
+		client:  client,
+		store:   store,
+		adaptor: adaptor,
 	}
 }
 
-func (h *Handler) HandleWithCallback(ctx context.Context, m *Message, callback func(*botastic.ConvTurn, error) error) error {
-	return callback(h.Handle(ctx, m))
+func (h *Handler) Run(ctx context.Context) error {
+	g := errgroup.Group{}
+
+	g.Go(func() error {
+		return h.adaptor.Start(ctx)
+	})
+
+	g.Go(func() error {
+		for {
+			select {
+			case msg := <-h.adaptor.GetMessageChan():
+				turn, err := h.handleMessage(ctx, msg)
+				if err := h.adaptor.HandleResult(ctx, turn, err); err != nil {
+					return err
+				}
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	})
+
+	return g.Wait()
 }
 
-func (h *Handler) Handle(ctx context.Context, m *Message) (*botastic.ConvTurn, error) {
+func (h *Handler) handleMessage(ctx context.Context, m *Message) (*botastic.ConvTurn, error) {
 	conv, err := h.store.GetConversationByKey(m.ConvKey)
 	if err != nil {
 		return nil, err

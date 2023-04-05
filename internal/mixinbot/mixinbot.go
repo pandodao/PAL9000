@@ -11,9 +11,17 @@ import (
 	"github.com/fox-one/mixin-sdk-go"
 	"github.com/fox-one/pkg/uuid"
 	"github.com/pandodao/PAL9000/config"
-	pal9000 "github.com/pandodao/PAL9000/service"
+	"github.com/pandodao/PAL9000/service"
 	"github.com/pandodao/botastic-go"
 )
+
+type (
+	messageKey struct{}
+	userKey    struct{}
+	convKey    struct{}
+)
+
+var _ service.Adaptor = (*Bot)(nil)
 
 type Bot struct {
 	convMap map[string]*mixin.Conversation
@@ -21,17 +29,17 @@ type Bot struct {
 
 	client  *mixin.Client
 	me      *mixin.User
-	handler *pal9000.Handler
 	botCfg  config.BotConfig
+	msgChan chan *service.Message
 }
 
-func New(client *mixin.Client, handler *pal9000.Handler, botCfg config.BotConfig) *Bot {
+func New(client *mixin.Client, botCfg config.BotConfig) *Bot {
 	return &Bot{
 		convMap: make(map[string]*mixin.Conversation),
 		userMap: make(map[string]*mixin.User),
 		client:  client,
-		handler: handler,
 		botCfg:  botCfg,
+		msgChan: make(chan *service.Message),
 	}
 }
 
@@ -44,7 +52,7 @@ func (b *Bot) SetUserMe(ctx context.Context) error {
 	return nil
 }
 
-func (b *Bot) Run(ctx context.Context) error {
+func (b *Bot) Start(ctx context.Context) error {
 	for {
 		if err := b.client.LoopBlaze(ctx, mixin.BlazeListenFunc(b.run)); err != nil {
 			log.Printf("mixinClient.LoopBlaze error: %v\n", err)
@@ -56,6 +64,37 @@ func (b *Bot) Run(ctx context.Context) error {
 		case <-time.After(time.Second):
 		}
 	}
+}
+
+func (b *Bot) GetMessageChan() <-chan *service.Message {
+	return b.msgChan
+}
+
+func (b *Bot) HandleResult(ctx context.Context, turn *botastic.ConvTurn, err error) error {
+	msg := ctx.Value(messageKey{}).(*mixin.MessageView)
+	user := ctx.Value(userKey{}).(*mixin.User)
+	conv := ctx.Value(convKey{}).(*mixin.Conversation)
+
+	mq := &mixin.MessageRequest{
+		ConversationID: msg.ConversationID,
+		MessageID:      uuid.Modify(msg.MessageID, "reply"),
+		Category:       msg.Category,
+		Data:           msg.Data,
+	}
+
+	text := ""
+	if err != nil {
+		text = err.Error()
+	} else {
+		text = turn.Response
+	}
+
+	if conv.Category == mixin.ConversationCategoryGroup {
+		text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, turn.Request, text)
+	}
+	mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
+	b.client.SendMessage(ctx, mq)
+	return nil
 }
 
 func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) error {
@@ -94,34 +133,17 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 		content = strings.TrimSpace(content)
 	}
 
-	b.handler.HandleWithCallback(ctx, &pal9000.Message{
+	ctx = context.WithValue(ctx, messageKey{}, msg)
+	ctx = context.WithValue(ctx, userKey{}, user)
+	ctx = context.WithValue(ctx, convKey{}, conv)
+
+	b.msgChan <- &service.Message{
 		BotID:        b.botCfg.BotID,
 		UserIdentity: msg.UserID,
 		ConvKey:      msg.ConversationID + ":" + msg.UserID,
 		Content:      string(data),
 		Lang:         b.botCfg.Lang,
-	}, func(turn *botastic.ConvTurn, err error) error {
-		mq := &mixin.MessageRequest{
-			ConversationID: msg.ConversationID,
-			MessageID:      uuid.Modify(msg.MessageID, "reply"),
-			Category:       msg.Category,
-			Data:           msg.Data,
-		}
-		text := ""
-		if err != nil {
-			text = err.Error()
-		} else {
-			text = turn.Response
-		}
-		if isGroup {
-			text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, content, text)
-		}
-		mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
-		// fmt.Println(content)
-		// fmt.Println(text)
-		b.client.SendMessage(ctx, mq)
-		return nil
-	})
+	}
 
 	return nil
 }
