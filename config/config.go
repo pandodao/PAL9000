@@ -8,8 +8,8 @@ import (
 )
 
 type Config struct {
-	Bot      BotConfig      `yaml:"bot"`
-	Botastic BotasticConfig `yaml:"botastic"`
+	General  GeneralConfig  `yaml:"general"`
+	Adaptors AdaptorsConfig `yaml:"adaptors"`
 }
 
 func (s *Config) String() string {
@@ -23,16 +23,42 @@ type BotConfig struct {
 }
 
 type BotasticConfig struct {
-	AppId     string `yaml:"app_id"`
-	AppSecret string `yaml:"app_secret"`
-	Host      string `yaml:"host"`
-	Debug     bool   `yaml:"debug"`
+	AppId string `yaml:"app_id"`
+	Host  string `yaml:"host"`
+	Debug bool   `yaml:"debug"`
+}
+
+type GeneralConfig struct {
+	Bot      *BotConfig      `yaml:"bot"`
+	Botastic *BotasticConfig `yaml:"botastic"`
+}
+
+type AdaptorsConfig struct {
+	Mixin    MixinConfig    `yaml:"mixin"`
+	Telegram TelegramConfig `yaml:"telegram"`
+}
+
+type MixinConfig struct {
+	GeneralConfig `yaml:",inline"`
+
+	Enabled  bool   `yaml:"enabled"`
+	Keystore string `yaml:"keystore"` // base64 encoded keystore (json format)
+}
+
+type TelegramConfig struct {
+	GeneralConfig `yaml:",inline"`
+
+	Enabled bool   `yaml:"enabled"`
+	Debug   bool   `yaml:"debug"`
+	Token   string `yaml:"token"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		Bot: BotConfig{
-			Lang: "en",
+		General: GeneralConfig{
+			Bot: &BotConfig{
+				Lang: "en",
+			},
 		},
 	}
 }

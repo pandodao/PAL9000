@@ -3,6 +3,7 @@ package mixinbot
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"github.com/fox-one/pkg/uuid"
 	"github.com/pandodao/PAL9000/config"
 	"github.com/pandodao/PAL9000/service"
-	"github.com/pandodao/botastic-go"
 )
 
 type (
@@ -28,52 +28,84 @@ type Bot struct {
 	userMap map[string]*mixin.User
 
 	client  *mixin.Client
-	me      *mixin.User
-	botCfg  config.BotConfig
 	msgChan chan *service.Message
+	me      *mixin.User
+	cfg     config.MixinConfig
 }
 
-func New(client *mixin.Client, botCfg config.BotConfig) *Bot {
+func Init(ctx context.Context, cfg config.MixinConfig) (*Bot, error) {
+	data, err := base64.StdEncoding.DecodeString(cfg.Keystore)
+	if err != nil {
+		return nil, fmt.Errorf("base64 decode keystore error: %w", err)
+	}
+
+	var keystore mixin.Keystore
+	if err := json.Unmarshal(data, &keystore); err != nil {
+		return nil, fmt.Errorf("json unmarshal keystore error: %w", err)
+	}
+
+	client, err := mixin.NewFromKeystore(&keystore)
+	if err != nil {
+		return nil, fmt.Errorf("mixin.NewFromKeystore error: %w", err)
+	}
+
+	me, err := client.UserMe(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("mixinClient.UserMe error: %w", err)
+	}
+
 	return &Bot{
 		convMap: make(map[string]*mixin.Conversation),
 		userMap: make(map[string]*mixin.User),
 		client:  client,
-		botCfg:  botCfg,
 		msgChan: make(chan *service.Message),
-	}
+		cfg:     cfg,
+		me:      me,
+	}, nil
 }
 
-func (b *Bot) SetUserMe(ctx context.Context) error {
-	me, err := b.client.UserMe(ctx)
-	if err != nil {
-		return fmt.Errorf("client.UserMe error: %v", err)
-	}
-	b.me = me
-	return nil
-}
+func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
+	go func() {
+		for {
+			if err := b.client.LoopBlaze(ctx, mixin.BlazeListenFunc(b.run)); err != nil {
+				log.Printf("mixinClient.LoopBlaze error: %v\n", err)
+			}
 
-func (b *Bot) Start(ctx context.Context) error {
-	for {
-		if err := b.client.LoopBlaze(ctx, mixin.BlazeListenFunc(b.run)); err != nil {
-			log.Printf("mixinClient.LoopBlaze error: %v\n", err)
+			select {
+			case <-ctx.Done():
+				close(b.msgChan)
+				return
+			case <-time.After(time.Second):
+			}
 		}
+	}()
 
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(time.Second):
-		}
-	}
-}
-
-func (b *Bot) GetMessageChan() <-chan *service.Message {
 	return b.msgChan
 }
 
-func (b *Bot) HandleResult(ctx context.Context, turn *botastic.ConvTurn, err error) error {
-	msg := ctx.Value(messageKey{}).(*mixin.MessageView)
-	user := ctx.Value(userKey{}).(*mixin.User)
-	conv := ctx.Value(convKey{}).(*mixin.Conversation)
+func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
+	resultChan := make(chan *service.Result)
+	go func() {
+		for {
+			select {
+			case r := <-resultChan:
+				if err := b.handleResult(ctx, r); err != nil {
+					log.Printf("handleResult error: %v\n", err)
+				}
+			case <-ctx.Done():
+				close(resultChan)
+				return
+			}
+		}
+	}()
+
+	return resultChan
+}
+
+func (b *Bot) handleResult(ctx context.Context, r *service.Result) error {
+	msg := r.Message.Context.Value(messageKey{}).(*mixin.MessageView)
+	user := r.Message.Context.Value(userKey{}).(*mixin.User)
+	conv := r.Message.Context.Value(convKey{}).(*mixin.Conversation)
 
 	mq := &mixin.MessageRequest{
 		ConversationID: msg.ConversationID,
@@ -83,18 +115,17 @@ func (b *Bot) HandleResult(ctx context.Context, turn *botastic.ConvTurn, err err
 	}
 
 	text := ""
-	if err != nil {
-		text = err.Error()
+	if r.Err != nil {
+		text = r.Err.Error()
 	} else {
-		text = turn.Response
+		text = r.ConvTurn.Response
 	}
 
 	if conv.Category == mixin.ConversationCategoryGroup {
-		text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, turn.Request, text)
+		text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, r.Message.Content, text)
 	}
 	mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
-	b.client.SendMessage(ctx, mq)
-	return nil
+	return b.client.SendMessage(ctx, mq)
 }
 
 func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) error {
@@ -138,11 +169,10 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 	ctx = context.WithValue(ctx, convKey{}, conv)
 
 	b.msgChan <- &service.Message{
-		BotID:        b.botCfg.BotID,
+		Context:      ctx,
 		UserIdentity: msg.UserID,
 		ConvKey:      msg.ConversationID + ":" + msg.UserID,
 		Content:      string(data),
-		Lang:         b.botCfg.Lang,
 	}
 
 	return nil

@@ -3,62 +3,73 @@ package service
 import (
 	"context"
 
+	"github.com/pandodao/PAL9000/config"
 	"github.com/pandodao/PAL9000/store"
 	"github.com/pandodao/botastic-go"
-	"golang.org/x/sync/errgroup"
 )
 
 type Adaptor interface {
-	GetMessageChan() <-chan *Message
-	HandleResult(ctx context.Context, t *botastic.ConvTurn, err error) error
-	Start(ctx context.Context) error
+	GetMessageChan(ctx context.Context) <-chan *Message
+	GetResultChan(ctx context.Context) chan<- *Result
 }
 
 type Handler struct {
+	cfg     config.GeneralConfig
 	client  *botastic.Client
 	store   store.Store
 	adaptor Adaptor
 }
 
 type Message struct {
-	BotID        uint64
+	Context context.Context
+	BotID   uint64
+	Lang    string
+
 	UserIdentity string
 	ConvKey      string
 	Content      string
-	Lang         string
-	Resp         *botastic.ConvTurn
 }
 
-func NewHandler(client *botastic.Client, store store.Store, adaptor Adaptor) *Handler {
+type Result struct {
+	Message  *Message
+	ConvTurn *botastic.ConvTurn
+	Err      error
+}
+
+func NewHandler(cfg config.GeneralConfig, store store.Store, adaptor Adaptor) *Handler {
+	client := botastic.New(cfg.Botastic.AppId, "", botastic.WithDebug(cfg.Botastic.Debug), botastic.WithHost(cfg.Botastic.Host))
 	return &Handler{
+		cfg:     cfg,
 		client:  client,
 		store:   store,
 		adaptor: adaptor,
 	}
 }
 
-func (h *Handler) Run(ctx context.Context) error {
-	g := errgroup.Group{}
+func (h *Handler) Start(ctx context.Context) error {
+	msgChan := h.adaptor.GetMessageChan(ctx)
+	resultChan := h.adaptor.GetResultChan(ctx)
 
-	g.Go(func() error {
-		return h.adaptor.Start(ctx)
-	})
-
-	g.Go(func() error {
-		for {
-			select {
-			case msg := <-h.adaptor.GetMessageChan():
-				turn, err := h.handleMessage(ctx, msg)
-				if err := h.adaptor.HandleResult(ctx, turn, err); err != nil {
-					return err
-				}
-			case <-ctx.Done():
-				return ctx.Err()
+	for {
+		select {
+		case msg := <-msgChan:
+			if msg.BotID == 0 {
+				msg.BotID = h.cfg.Bot.BotID
 			}
-		}
-	})
+			if msg.Lang == "" {
+				msg.Lang = h.cfg.Bot.Lang
+			}
 
-	return g.Wait()
+			turn, err := h.handleMessage(ctx, msg)
+			resultChan <- &Result{
+				Message:  msg,
+				ConvTurn: turn,
+				Err:      err,
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 func (h *Handler) handleMessage(ctx context.Context, m *Message) (*botastic.ConvTurn, error) {
