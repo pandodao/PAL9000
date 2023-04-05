@@ -34,6 +34,7 @@ type GeneralConfig struct {
 }
 
 type AdaptorsConfig struct {
+	Enabled  []string       `yaml:"enabled"`
 	Mixin    MixinConfig    `yaml:"mixin"`
 	Telegram TelegramConfig `yaml:"telegram"`
 }

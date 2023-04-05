@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"os"
 
 	"github.com/pandodao/PAL9000/config"
@@ -39,4 +40,12 @@ func getGeneralConfig(defaultCfg, overrideCfg config.GeneralConfig) config.Gener
 	}
 
 	return cfg
+}
+
+func getOrInitConfig(ctx context.Context) (*config.Config, error) {
+	if v := ctx.Value(configKey{}); v != nil {
+		return v.(*config.Config), nil
+	}
+
+	return config.Init(cfgFile)
 }

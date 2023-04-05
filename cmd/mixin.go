@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"github.com/pandodao/PAL9000/config"
-	"github.com/pandodao/PAL9000/internal/mixinbot"
+	"github.com/pandodao/PAL9000/internal/mixin"
 	"github.com/pandodao/PAL9000/service"
 	"github.com/pandodao/PAL9000/store"
 	"github.com/spf13/cobra"
@@ -13,13 +12,13 @@ var mixinCmd = &cobra.Command{
 	Use:   "mixin",
 	Short: "Start a mixin bot service",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := config.Init(cfgFile)
+		ctx := cmd.Context()
+		cfg, err := getOrInitConfig(ctx)
 		if err != nil {
 			return err
 		}
 
-		ctx := cmd.Context()
-		b, err := mixinbot.Init(ctx, cfg.Adaptors.Mixin)
+		b, err := mixin.Init(ctx, cfg.Adaptors.Mixin)
 		if err != nil {
 			return err
 		}

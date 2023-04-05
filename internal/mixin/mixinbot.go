@@ -1,4 +1,4 @@
-package mixinbot
+package mixin
 
 import (
 	"context"

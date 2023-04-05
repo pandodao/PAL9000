@@ -1,4 +1,4 @@
-package telegrambot
+package telegram
 
 import (
 	"context"
