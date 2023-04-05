@@ -37,21 +37,26 @@ type AdaptorsConfig struct {
 	Enabled  []string       `yaml:"enabled"`
 	Mixin    MixinConfig    `yaml:"mixin"`
 	Telegram TelegramConfig `yaml:"telegram"`
+	Discord  DiscordConfig  `yaml:"discord"`
 }
 
 type MixinConfig struct {
 	GeneralConfig `yaml:",inline"`
 
-	Enabled  bool   `yaml:"enabled"`
 	Keystore string `yaml:"keystore"` // base64 encoded keystore (json format)
 }
 
 type TelegramConfig struct {
 	GeneralConfig `yaml:",inline"`
 
-	Enabled bool   `yaml:"enabled"`
-	Debug   bool   `yaml:"debug"`
-	Token   string `yaml:"token"`
+	Debug bool   `yaml:"debug"`
+	Token string `yaml:"token"`
+}
+
+type DiscordConfig struct {
+	GeneralConfig `yaml:",inline"`
+
+	Token string `yaml:"token"`
 }
 
 func DefaultConfig() *Config {

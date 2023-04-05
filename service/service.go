@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pandodao/PAL9000/config"
 	"github.com/pandodao/PAL9000/store"
@@ -9,6 +10,7 @@ import (
 )
 
 type Adaptor interface {
+	Name() string
 	GetMessageChan(ctx context.Context) <-chan *Message
 	GetResultChan(ctx context.Context) chan<- *Result
 }
@@ -47,6 +49,8 @@ func NewHandler(cfg config.GeneralConfig, store store.Store, adaptor Adaptor) *H
 }
 
 func (h *Handler) Start(ctx context.Context) error {
+	fmt.Println("Starting adaptor:", h.adaptor.Name())
+
 	msgChan := h.adaptor.GetMessageChan(ctx)
 	resultChan := h.adaptor.GetResultChan(ctx)
 

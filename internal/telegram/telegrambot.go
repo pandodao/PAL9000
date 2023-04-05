@@ -10,6 +10,8 @@ import (
 	"github.com/pandodao/PAL9000/service"
 )
 
+var _ service.Adaptor = (*Bot)(nil)
+
 type messageKey struct{}
 
 type Bot struct {
@@ -30,28 +32,31 @@ func Init(cfg config.TelegramConfig) (*Bot, error) {
 	}, nil
 }
 
+func (b *Bot) Name() string {
+	return "telegram_bot"
+}
+
 func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 	msgChan := make(chan *service.Message)
 	go func() {
-		for {
-			u := tgbotapi.NewUpdate(0)
-			updates := b.client.GetUpdatesChan(u)
-			for update := range updates {
-				if update.Message != nil {
-					msgChan <- &service.Message{
-						Context:      context.WithValue(ctx, messageKey{}, update.Message),
-						Content:      update.Message.Text,
-						UserIdentity: strconv.FormatInt(update.Message.From.ID, 10),
-						ConvKey:      strconv.FormatInt(update.Message.Chat.ID, 10),
-					}
+		u := tgbotapi.NewUpdate(0)
+		updates := b.client.GetUpdatesChan(u)
+		for update := range updates {
+			if update.Message != nil {
+				msgChan <- &service.Message{
+					Context:      context.WithValue(ctx, messageKey{}, update.Message),
+					Content:      update.Message.Text,
+					UserIdentity: strconv.FormatInt(update.Message.From.ID, 10),
+					ConvKey:      strconv.FormatInt(update.Message.Chat.ID, 10),
 				}
 			}
+		}
 
-			select {
-			case <-ctx.Done():
-				close(msgChan)
-				return
-			}
+		select {
+		case <-ctx.Done():
+			b.client.StopReceivingUpdates()
+			close(msgChan)
+			return
 		}
 	}()
 

@@ -32,6 +32,10 @@ var runCmd = &cobra.Command{
 				g.Go(func() error {
 					return telegramCmd.RunE(cmd, []string{})
 				})
+			case "discord":
+				g.Go(func() error {
+					return discordCmd.RunE(cmd, []string{})
+				})
 			}
 		}
 
