@@ -142,7 +142,7 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 			select {
 			case r := <-resultChan:
 				func() {
-					ctx = r.Message.Context
+					ctx := r.Message.Context
 					w := ctx.Value(httpResponseKey{}).(http.ResponseWriter)
 					doneChan := ctx.Value(doneChanKey{}).(chan struct{})
 					receivedMessage := ctx.Value(rawMessageKey{}).(TextMessage)
