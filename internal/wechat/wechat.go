@@ -73,7 +73,6 @@ func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 			nonce := r.Form.Get("nonce")
 			echostr := r.Form.Get("echostr")
 
-			fmt.Println(signature, timestamp, nonce, b.cfg.Token)
 			if !validateSignature(signature, timestamp, nonce) {
 				http.Error(w, "Invalid signature", http.StatusForbidden)
 				return
