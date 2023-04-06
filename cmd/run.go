@@ -36,6 +36,10 @@ var runCmd = &cobra.Command{
 				g.Go(func() error {
 					return discordCmd.RunE(cmd, []string{})
 				})
+			case "wechat":
+				g.Go(func() error {
+					return wechatCmd.RunE(cmd, []string{})
+				})
 			}
 		}
 

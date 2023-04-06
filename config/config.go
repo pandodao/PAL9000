@@ -38,6 +38,15 @@ type AdaptorsConfig struct {
 	Mixin    MixinConfig    `yaml:"mixin"`
 	Telegram TelegramConfig `yaml:"telegram"`
 	Discord  DiscordConfig  `yaml:"discord"`
+	WeChat   WeChatConfig   `yaml:"wechat"`
+}
+
+type WeChatConfig struct {
+	GeneralConfig `yaml:",inline"`
+
+	Address string `yaml:"address"`
+	Path    string `yaml:"path"`
+	Token   string `yaml:"token"`
 }
 
 type MixinConfig struct {
