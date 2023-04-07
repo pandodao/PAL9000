@@ -176,7 +176,7 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 		Context:      ctx,
 		UserIdentity: msg.UserID,
 		ConvKey:      msg.ConversationID + ":" + msg.UserID,
-		Content:      string(data),
+		Content:      content,
 	}
 
 	return nil
