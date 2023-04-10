@@ -150,9 +150,24 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 		return nil
 	}
 
-	if user.IdentityNumber == "0" || strings.HasPrefix(user.IdentityNumber, "700") {
+	if user.IdentityNumber == "0" {
 		log.Println("user is not a messenger user, ignored")
 		return nil
+	}
+
+	if strings.HasPrefix(user.IdentityNumber, "700") {
+		inWhiteList := false
+		for _, in := range b.cfg.BotWhitelist {
+			if in == user.IdentityNumber {
+				inWhiteList = true
+				break
+			}
+		}
+
+		if !inWhiteList {
+			log.Println("user is not in bot whitelist, ignored")
+			return nil
+		}
 	}
 
 	data, err := base64.StdEncoding.DecodeString(msg.Data)
@@ -161,12 +176,8 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 	}
 
 	content := string(data)
-	isGroup := conv.Category == mixin.ConversationCategoryGroup
 	prefix := fmt.Sprintf("@%s", b.me.IdentityNumber)
-	if isGroup {
-		content = strings.TrimSpace(strings.TrimPrefix(content, prefix))
-		content = strings.TrimSpace(content)
-	}
+	content = strings.TrimSpace(strings.TrimPrefix(content, prefix))
 
 	ctx = context.WithValue(ctx, messageKey{}, msg)
 	ctx = context.WithValue(ctx, userKey{}, user)
