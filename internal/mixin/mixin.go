@@ -93,8 +93,33 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 					continue
 				}
 
-				if err := b.handleResult(ctx, r); err != nil {
-					log.Printf("handleResult error: %v\n", err)
+				msg := r.Message.Context.Value(messageKey{}).(mixin.MessageView)
+				user := r.Message.Context.Value(userKey{}).(*mixin.User)
+				conv := r.Message.Context.Value(convKey{}).(*mixin.Conversation)
+
+				mq := &mixin.MessageRequest{
+					ConversationID: msg.ConversationID,
+					MessageID:      uuid.Modify(msg.MessageID, "reply"),
+					Category:       msg.Category,
+				}
+
+				text := ""
+				if r.Err != nil {
+					text = r.Err.Error()
+				} else {
+					text = r.ConvTurn.Response
+				}
+
+				if conv.Category == mixin.ConversationCategoryGroup {
+					text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, r.Message.Content, text)
+				}
+				mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
+				if err := b.client.SendMessage(ctx, mq); err != nil {
+					log.Printf("mixinClient.SendMessage error: %v\n", err)
+					go func() {
+						time.Sleep(time.Second)
+						resultChan <- r
+					}()
 				}
 			case <-ctx.Done():
 				close(resultChan)
@@ -104,31 +129,6 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 	}()
 
 	return resultChan
-}
-
-func (b *Bot) handleResult(ctx context.Context, r *service.Result) error {
-	msg := r.Message.Context.Value(messageKey{}).(mixin.MessageView)
-	user := r.Message.Context.Value(userKey{}).(*mixin.User)
-	conv := r.Message.Context.Value(convKey{}).(*mixin.Conversation)
-
-	mq := &mixin.MessageRequest{
-		ConversationID: msg.ConversationID,
-		MessageID:      uuid.Modify(msg.MessageID, "reply"),
-		Category:       msg.Category,
-	}
-
-	text := ""
-	if r.Err != nil {
-		text = r.Err.Error()
-	} else {
-		text = r.ConvTurn.Response
-	}
-
-	if conv.Category == mixin.ConversationCategoryGroup {
-		text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, r.Message.Content, text)
-	}
-	mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
-	return b.client.SendMessage(ctx, mq)
 }
 
 func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) error {
