@@ -1,0 +1,4 @@
+FROM alpine:3.17
+WORKDIR /app
+COPY PAL9000 .
+ENTRYPOINT ["/app/PAL9000"]

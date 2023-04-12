@@ -18,7 +18,7 @@ dockers:
   - id: PAL9000
     goos: linux
     goarch: amd64
-    dockerfile: Dockerfile
+    dockerfile: goreleaser.Dockerfile
     image_templates:
       - "ghcr.io/pandodao/pal9000:latest"
       - "ghcr.io/pandodao/pal9000:{{ .Major }}"
