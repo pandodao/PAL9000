@@ -84,6 +84,65 @@ func DefaultConfig() *Config {
 	}
 }
 
+func ExampleConfig() *Config {
+	return &Config{
+		General: GeneralConfig{
+			Bot: &BotConfig{
+				BotID: 1,
+				Lang:  "en",
+			},
+			Botastic: &BotasticConfig{
+				AppId: "cab1582e-9c30-4d1e-9246-a5c80f74f8f9",
+				Host:  "https://botastic-api.aspens.rocks",
+				Debug: true,
+			},
+		},
+		Adaptors: AdaptorsConfig{
+			Enabled: []string{"test_mixin", "test_telegram", "test_discord", "test_wechat"},
+			Items: map[string]AdaptorConfig{
+				"test_mixin": {
+					Driver: "mixin",
+					Mixin: &MixinConfig{
+						Keystore:  "base64 encoded keystore",
+						Whitelist: []string{"7000104111", "a8d4e38e-9317-4529-8ca9-4289d4668111"},
+					},
+				},
+				"test_telegram": {
+					Driver: "telegram",
+					Telegram: &TelegramConfig{
+						Debug: true,
+						Token: "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+						GeneralConfig: GeneralConfig{
+							Bot: &BotConfig{
+								BotID: 2,
+								Lang:  "zh",
+							},
+							Botastic: &BotasticConfig{
+								AppId: "cab1582e-9c30-4d1e-9246-a5c80f74f8f9",
+								Host:  "https://botastic-api.aspens.rocks",
+							},
+						},
+					},
+				},
+				"test_discord": {
+					Driver: "discord",
+					Discord: &DiscordConfig{
+						Token: "1234567890",
+					},
+				},
+				"test_wechat": {
+					Driver: "wechat",
+					WeChat: &WeChatConfig{
+						Address: ":8080",
+						Path:    "/wechat",
+						Token:   "123456",
+					},
+				},
+			},
+		},
+	}
+}
+
 func (c Config) validate() error {
 	for _, name := range c.Adaptors.Enabled {
 		if _, ok := c.Adaptors.Items[name]; !ok {
