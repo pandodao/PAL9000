@@ -163,6 +163,7 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 		return nil
 	}
 
+	conversationKey := msg.ConversationID + ":" + msg.UserID
 	if strings.HasPrefix(user.IdentityNumber, "700") {
 		inWhiteList := false
 		for _, in := range b.cfg.BotWhitelist {
@@ -180,6 +181,7 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 		if !strings.HasPrefix(content, prefix) {
 			return nil
 		}
+		conversationKey = msg.ConversationID + ":" + msg.RepresentativeID
 	}
 
 	content = strings.TrimSpace(strings.TrimPrefix(content, prefix))
@@ -191,7 +193,7 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 	b.msgChan <- &service.Message{
 		Context:      ctx,
 		UserIdentity: msg.UserID,
-		ConvKey:      msg.ConversationID + ":" + msg.UserID,
+		ConvKey:      conversationKey,
 		Content:      content,
 	}
 
