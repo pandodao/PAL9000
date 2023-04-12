@@ -107,7 +107,7 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 }
 
 func (b *Bot) handleResult(ctx context.Context, r *service.Result) error {
-	msg := r.Message.Context.Value(messageKey{}).(*mixin.MessageView)
+	msg := r.Message.Context.Value(messageKey{}).(mixin.MessageView)
 	user := r.Message.Context.Value(userKey{}).(*mixin.User)
 	conv := r.Message.Context.Value(convKey{}).(*mixin.Conversation)
 
@@ -115,7 +115,6 @@ func (b *Bot) handleResult(ctx context.Context, r *service.Result) error {
 		ConversationID: msg.ConversationID,
 		MessageID:      uuid.Modify(msg.MessageID, "reply"),
 		Category:       msg.Category,
-		Data:           msg.Data,
 	}
 
 	text := ""
@@ -185,7 +184,7 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 
 	content = strings.TrimSpace(strings.TrimPrefix(content, prefix))
 
-	ctx = context.WithValue(ctx, messageKey{}, msg)
+	ctx = context.WithValue(ctx, messageKey{}, *msg)
 	ctx = context.WithValue(ctx, userKey{}, user)
 	ctx = context.WithValue(ctx, convKey{}, conv)
 
