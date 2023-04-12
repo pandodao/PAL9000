@@ -172,8 +172,8 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 	conversationKey := msg.ConversationID + ":" + msg.UserID
 
 	// super group bot
-	if strings.HasPrefix(user.IdentityNumber, "700") && msg.RepresentativeID != "" {
-		if !strings.HasPrefix(content, prefix) {
+	if strings.HasPrefix(user.IdentityNumber, "700") {
+		if !strings.HasPrefix(content, prefix) || msg.RepresentativeID == "" {
 			return nil
 		}
 		conversationKey = msg.ConversationID + ":" + msg.RepresentativeID
