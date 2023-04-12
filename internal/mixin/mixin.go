@@ -149,6 +149,21 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 		log.Println("getUser error:", err)
 		return nil
 	}
+	if user.IdentityNumber == "0" {
+		log.Println("user is not a messenger user, ignored")
+		return nil
+	}
+
+	allowed := len(b.cfg.Whitelist) == 0
+	for _, id := range b.cfg.Whitelist {
+		if id == user.IdentityNumber || conv.ConversationID == id {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return nil
+	}
 
 	data, err := base64.StdEncoding.DecodeString(msg.Data)
 	if err != nil {
@@ -158,26 +173,10 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 	content := string(data)
 	prefix := fmt.Sprintf("@%s", b.me.IdentityNumber)
 
-	if user.IdentityNumber == "0" {
-		log.Println("user is not a messenger user, ignored")
-		return nil
-	}
-
 	conversationKey := msg.ConversationID + ":" + msg.UserID
-	if strings.HasPrefix(user.IdentityNumber, "700") {
-		inWhiteList := false
-		for _, in := range b.cfg.BotWhitelist {
-			if in == user.IdentityNumber {
-				inWhiteList = true
-				break
-			}
-		}
 
-		if !inWhiteList {
-			log.Println("user is not in bot whitelist, ignored")
-			return nil
-		}
-
+	// super group bot
+	if strings.HasPrefix(user.IdentityNumber, "700") && msg.RepresentativeID != "" {
 		if !strings.HasPrefix(content, prefix) {
 			return nil
 		}

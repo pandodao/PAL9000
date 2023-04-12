@@ -52,8 +52,8 @@ type WeChatConfig struct {
 type MixinConfig struct {
 	GeneralConfig `yaml:",inline"`
 
-	Keystore     string   `yaml:"keystore"` // base64 encoded keystore (json format)
-	BotWhitelist []string `yaml:"bot_whitelist"`
+	Keystore  string   `yaml:"keystore"` // base64 encoded keystore (json format)
+	Whitelist []string `yaml:"whitelist"`
 }
 
 type TelegramConfig struct {
