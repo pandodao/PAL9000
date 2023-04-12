@@ -20,10 +20,10 @@ dockers:
     goarch: amd64
     dockerfile: Dockerfile
     image_templates:
-      - "ghcr.io/pandodao/{{ .ProjectName }}:latest"
-      - "ghcr.io/pandodao/{{ .ProjectName }}:{{ .Major }}"
-      - "ghcr.io/pandodao/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}"
-      - "ghcr.io/pandodao/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
+      - "ghcr.io/pandodao/pal9000:latest"
+      - "ghcr.io/pandodao/pal9000:{{ .Major }}"
+      - "ghcr.io/pandodao/pal9000:{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/pandodao/pal9000:{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
 blobs:
   - provider: s3
     region: us-east-2
