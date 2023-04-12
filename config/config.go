@@ -29,16 +29,21 @@ type BotasticConfig struct {
 }
 
 type GeneralConfig struct {
-	Bot      *BotConfig      `yaml:"bot"`
-	Botastic *BotasticConfig `yaml:"botastic"`
+	Bot      *BotConfig      `yaml:"bot,omitempty"`
+	Botastic *BotasticConfig `yaml:"botastic,omitempty"`
 }
 
 type AdaptorsConfig struct {
-	Enabled  []string       `yaml:"enabled"`
-	Mixin    MixinConfig    `yaml:"mixin"`
-	Telegram TelegramConfig `yaml:"telegram"`
-	Discord  DiscordConfig  `yaml:"discord"`
-	WeChat   WeChatConfig   `yaml:"wechat"`
+	Enabled []string                 `yaml:"enabled"`
+	Items   map[string]AdaptorConfig `yaml:"items"`
+}
+
+type AdaptorConfig struct {
+	Driver   string          `yaml:"driver"`
+	Mixin    *MixinConfig    `yaml:"mixin,omitempty"`
+	Telegram *TelegramConfig `yaml:"telegram,omitempty"`
+	Discord  *DiscordConfig  `yaml:"discord,omitempty"`
+	WeChat   *WeChatConfig   `yaml:"wechat,omitempty"`
 }
 
 type WeChatConfig struct {
@@ -80,6 +85,33 @@ func DefaultConfig() *Config {
 }
 
 func (c Config) validate() error {
+	for _, name := range c.Adaptors.Enabled {
+		if _, ok := c.Adaptors.Items[name]; !ok {
+			return fmt.Errorf("adaptor not found: %s", name)
+		}
+	}
+	for name, c := range c.Adaptors.Items {
+		switch c.Driver {
+		case "mixin":
+			if c.Mixin == nil {
+				return fmt.Errorf("config not found, name: %s, driver: %s", name, c.Driver)
+			}
+		case "telegram":
+			if c.Telegram == nil {
+				return fmt.Errorf("config not found, name: %s, driver: %s", name, c.Driver)
+			}
+		case "discord":
+			if c.Discord == nil {
+				return fmt.Errorf("config not found, name: %s, driver: %s", name, c.Driver)
+			}
+		case "wechat":
+			if c.WeChat == nil {
+				return fmt.Errorf("config not found, name: %s, driver: %s", name, c.Driver)
+			}
+		default:
+			return fmt.Errorf("invalid driver, name: %s, driver: %s", name, c.Driver)
+		}
+	}
 	return nil
 }
 

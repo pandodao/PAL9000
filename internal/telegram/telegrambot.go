@@ -32,10 +32,6 @@ func Init(cfg config.TelegramConfig) (*Bot, error) {
 	}, nil
 }
 
-func (b *Bot) Name() string {
-	return "telegram_bot"
-}
-
 func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 	msgChan := make(chan *service.Message)
 	go func() {

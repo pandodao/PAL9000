@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"context"
 	"os"
 
-	"github.com/pandodao/PAL9000/config"
 	"github.com/spf13/cobra"
 )
 
@@ -28,24 +26,4 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "config.yaml", "config file (default is config.yaml)")
-}
-
-func getGeneralConfig(defaultCfg, overrideCfg config.GeneralConfig) config.GeneralConfig {
-	cfg := defaultCfg
-	if overrideCfg.Bot != nil {
-		cfg.Bot = overrideCfg.Bot
-	}
-	if overrideCfg.Botastic != nil {
-		cfg.Botastic = overrideCfg.Botastic
-	}
-
-	return cfg
-}
-
-func getOrInitConfig(ctx context.Context) (*config.Config, error) {
-	if v := ctx.Value(configKey{}); v != nil {
-		return v.(*config.Config), nil
-	}
-
-	return config.Init(cfgFile)
 }
