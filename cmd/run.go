@@ -90,6 +90,9 @@ func getGeneralConfig(defaultCfg, overrideCfg config.GeneralConfig) config.Gener
 	if overrideCfg.Botastic != nil {
 		cfg.Botastic = overrideCfg.Botastic
 	}
+	if overrideCfg.Options != nil {
+		cfg.Options = overrideCfg.Options
+	}
 
 	return cfg
 }

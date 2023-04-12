@@ -28,9 +28,14 @@ type BotasticConfig struct {
 	Debug bool   `yaml:"debug"`
 }
 
+type GeneralOptionsConfig struct {
+	IgnoreIfError bool `yaml:"ignore_if_error"`
+}
+
 type GeneralConfig struct {
-	Bot      *BotConfig      `yaml:"bot,omitempty"`
-	Botastic *BotasticConfig `yaml:"botastic,omitempty"`
+	Options  *GeneralOptionsConfig `yaml:"options,omitempty"`
+	Bot      *BotConfig            `yaml:"bot,omitempty"`
+	Botastic *BotasticConfig       `yaml:"botastic,omitempty"`
 }
 
 type AdaptorsConfig struct {
@@ -77,6 +82,9 @@ type DiscordConfig struct {
 func DefaultConfig() *Config {
 	return &Config{
 		General: GeneralConfig{
+			Options: &GeneralOptionsConfig{
+				IgnoreIfError: true,
+			},
 			Bot: &BotConfig{
 				Lang: "en",
 			},

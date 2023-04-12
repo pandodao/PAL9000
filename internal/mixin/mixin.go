@@ -89,6 +89,10 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 		for {
 			select {
 			case r := <-resultChan:
+				if r.Err != nil && r.IgnoreIfError {
+					continue
+				}
+
 				if err := b.handleResult(ctx, r); err != nil {
 					log.Printf("handleResult error: %v\n", err)
 				}

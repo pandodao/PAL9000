@@ -139,6 +139,11 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 				func() {
 					ctx := r.Message.Context
 					w := ctx.Value(httpResponseKey{}).(http.ResponseWriter)
+					if r.Err != nil && r.IgnoreIfError {
+						w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+						w.Write([]byte("<xml></xml>"))
+						return
+					}
 					doneChan := ctx.Value(doneChanKey{}).(chan struct{})
 					receivedMessage := ctx.Value(rawMessageKey{}).(TextMessage)
 					defer close(doneChan)

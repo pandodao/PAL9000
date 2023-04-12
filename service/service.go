@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pandodao/PAL9000/config"
 	"github.com/pandodao/PAL9000/store"
@@ -31,9 +32,10 @@ type Message struct {
 }
 
 type Result struct {
-	Message  *Message
-	ConvTurn *botastic.ConvTurn
-	Err      error
+	Message       *Message
+	ConvTurn      *botastic.ConvTurn
+	Err           error
+	IgnoreIfError bool
 }
 
 func NewHandler(cfg config.GeneralConfig, store store.Store, adaptor Adaptor) *Handler {
@@ -62,9 +64,10 @@ func (h *Handler) Start(ctx context.Context) error {
 
 			turn, err := h.handleMessage(ctx, msg)
 			resultChan <- &Result{
-				Message:  msg,
-				ConvTurn: turn,
-				Err:      err,
+				Message:       msg,
+				ConvTurn:      turn,
+				IgnoreIfError: h.cfg.Options.IgnoreIfError,
+				Err:           err,
 			}
 		case <-ctx.Done():
 			return ctx.Err()
@@ -106,6 +109,9 @@ func (h *Handler) handleMessage(ctx context.Context, m *Message) (*botastic.Conv
 	if err != nil {
 		// TODO: retry
 		return nil, err
+	}
+	if turn.Status != 2 {
+		return nil, fmt.Errorf("unexpected status: %d", turn.Status)
 	}
 
 	return turn, nil
