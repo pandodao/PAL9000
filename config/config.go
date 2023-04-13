@@ -9,7 +9,7 @@ import (
 
 type Config struct {
 	General  GeneralConfig  `yaml:"general"`
-	Adaptors AdaptorsConfig `yaml:"adaptors"`
+	Adapters AdaptersConfig `yaml:"adapters"`
 }
 
 func (s *Config) String() string {
@@ -38,12 +38,12 @@ type GeneralConfig struct {
 	Botastic *BotasticConfig       `yaml:"botastic,omitempty"`
 }
 
-type AdaptorsConfig struct {
+type AdaptersConfig struct {
 	Enabled []string                 `yaml:"enabled"`
-	Items   map[string]AdaptorConfig `yaml:"items"`
+	Items   map[string]AdapterConfig `yaml:"items"`
 }
 
-type AdaptorConfig struct {
+type AdapterConfig struct {
 	Driver   string          `yaml:"driver"`
 	Mixin    *MixinConfig    `yaml:"mixin,omitempty"`
 	Telegram *TelegramConfig `yaml:"telegram,omitempty"`
@@ -107,9 +107,9 @@ func ExampleConfig() *Config {
 				Debug: true,
 			},
 		},
-		Adaptors: AdaptorsConfig{
+		Adapters: AdaptersConfig{
 			Enabled: []string{"test_mixin", "test_telegram", "test_discord", "test_wechat"},
-			Items: map[string]AdaptorConfig{
+			Items: map[string]AdapterConfig{
 				"test_mixin": {
 					Driver: "mixin",
 					Mixin: &MixinConfig{
@@ -156,12 +156,12 @@ func ExampleConfig() *Config {
 }
 
 func (c Config) validate() error {
-	for _, name := range c.Adaptors.Enabled {
-		if _, ok := c.Adaptors.Items[name]; !ok {
-			return fmt.Errorf("adaptor not found: %s", name)
+	for _, name := range c.Adapters.Enabled {
+		if _, ok := c.Adapters.Items[name]; !ok {
+			return fmt.Errorf("adapter not found: %s", name)
 		}
 	}
-	for name, c := range c.Adaptors.Items {
+	for name, c := range c.Adapters.Items {
 		switch c.Driver {
 		case "mixin":
 			if c.Mixin == nil {

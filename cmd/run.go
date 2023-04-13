@@ -29,47 +29,47 @@ var runCmd = &cobra.Command{
 		cmd.SetContext(context.WithValue(cmd.Context(), configKey{}, cfg))
 		ctx := cmd.Context()
 
-		startHandler := func(h *service.Handler, name string, adaptorCfg config.AdaptorConfig) error {
-			fmt.Printf("Starting adaptor, name: %s, driver: %s\n", name, adaptorCfg.Driver)
+		startHandler := func(h *service.Handler, name string, adapterCfg config.AdapterConfig) error {
+			fmt.Printf("Starting adapter, name: %s, driver: %s\n", name, adapterCfg.Driver)
 			return h.Start(ctx)
 		}
 
 		g := errgroup.Group{}
-		for _, name := range cfg.Adaptors.Enabled {
+		for _, name := range cfg.Adapters.Enabled {
 			name := name
-			adaptor := cfg.Adaptors.Items[name]
-			switch adaptor.Driver {
+			adapter := cfg.Adapters.Items[name]
+			switch adapter.Driver {
 			case "mixin":
 				g.Go(func() error {
-					b, err := mixin.Init(ctx, *adaptor.Mixin)
+					b, err := mixin.Init(ctx, *adapter.Mixin)
 					if err != nil {
 						return err
 					}
 
-					h := service.NewHandler(getGeneralConfig(cfg.General, adaptor.Mixin.GeneralConfig), store.NewMemoryStore(), b)
-					return startHandler(h, name, adaptor)
+					h := service.NewHandler(getGeneralConfig(cfg.General, adapter.Mixin.GeneralConfig), store.NewMemoryStore(), b)
+					return startHandler(h, name, adapter)
 				})
 			case "telegram":
 				g.Go(func() error {
-					b, err := telegram.Init(*adaptor.Telegram)
+					b, err := telegram.Init(*adapter.Telegram)
 					if err != nil {
 						return err
 					}
 
-					h := service.NewHandler(getGeneralConfig(cfg.General, adaptor.Telegram.GeneralConfig), store.NewMemoryStore(), b)
-					return startHandler(h, name, adaptor)
+					h := service.NewHandler(getGeneralConfig(cfg.General, adapter.Telegram.GeneralConfig), store.NewMemoryStore(), b)
+					return startHandler(h, name, adapter)
 				})
 			case "discord":
 				g.Go(func() error {
-					b := discord.New(*adaptor.Discord)
-					h := service.NewHandler(getGeneralConfig(cfg.General, adaptor.Discord.GeneralConfig), store.NewMemoryStore(), b)
-					return startHandler(h, name, adaptor)
+					b := discord.New(*adapter.Discord)
+					h := service.NewHandler(getGeneralConfig(cfg.General, adapter.Discord.GeneralConfig), store.NewMemoryStore(), b)
+					return startHandler(h, name, adapter)
 				})
 			case "wechat":
 				g.Go(func() error {
-					b := wechat.New(*adaptor.WeChat)
-					h := service.NewHandler(getGeneralConfig(cfg.General, adaptor.WeChat.GeneralConfig), store.NewMemoryStore(), b)
-					return startHandler(h, name, adaptor)
+					b := wechat.New(*adapter.WeChat)
+					h := service.NewHandler(getGeneralConfig(cfg.General, adapter.WeChat.GeneralConfig), store.NewMemoryStore(), b)
+					return startHandler(h, name, adapter)
 				})
 			}
 		}

@@ -21,7 +21,7 @@ type (
 	convKey    struct{}
 )
 
-var _ service.Adaptor = (*Bot)(nil)
+var _ service.Adapter = (*Bot)(nil)
 
 type Bot struct {
 	convMap map[string]*mixin.Conversation
