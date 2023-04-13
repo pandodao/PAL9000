@@ -69,14 +69,16 @@ type MixinConfig struct {
 type TelegramConfig struct {
 	GeneralConfig `yaml:",inline"`
 
-	Debug bool   `yaml:"debug"`
-	Token string `yaml:"token"`
+	Debug     bool     `yaml:"debug"`
+	Token     string   `yaml:"token"`
+	Whitelist []string `yaml:"whitelist"`
 }
 
 type DiscordConfig struct {
 	GeneralConfig `yaml:",inline"`
 
-	Token string `yaml:"token"`
+	Token     string   `yaml:"token"`
+	Whitelist []string `yaml:"whitelist"`
 }
 
 func DefaultConfig() *Config {
@@ -118,8 +120,9 @@ func ExampleConfig() *Config {
 				"test_telegram": {
 					Driver: "telegram",
 					Telegram: &TelegramConfig{
-						Debug: true,
-						Token: "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+						Debug:     true,
+						Token:     "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+						Whitelist: []string{"-10540154212", "xx"},
 						GeneralConfig: GeneralConfig{
 							Bot: &BotConfig{
 								BotID: 2,
@@ -135,7 +138,8 @@ func ExampleConfig() *Config {
 				"test_discord": {
 					Driver: "discord",
 					Discord: &DiscordConfig{
-						Token: "1234567890",
+						Token:     "1234567890",
+						Whitelist: []string{"1093104389113266186"},
 					},
 				},
 				"test_wechat": {

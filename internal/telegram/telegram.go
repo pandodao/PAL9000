@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/pandodao/PAL9000/config"
@@ -12,11 +13,14 @@ import (
 
 var _ service.Adaptor = (*Bot)(nil)
 
-type messageKey struct{}
+type (
+	messageKey struct{}
+	doneKey    struct{}
+)
 
 type Bot struct {
-	client  *tgbotapi.BotAPI
-	msgChan chan *service.Message
+	cfg    config.TelegramConfig
+	client *tgbotapi.BotAPI
 }
 
 func Init(cfg config.TelegramConfig) (*Bot, error) {
@@ -27,8 +31,8 @@ func Init(cfg config.TelegramConfig) (*Bot, error) {
 	bot.Debug = cfg.Debug
 
 	return &Bot{
-		client:  bot,
-		msgChan: make(chan *service.Message),
+		cfg:    cfg,
+		client: bot,
 	}, nil
 }
 
@@ -38,16 +42,37 @@ func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 		u := tgbotapi.NewUpdate(0)
 		updates := b.client.GetUpdatesChan(u)
 		for update := range updates {
-			if update.Message != nil {
-				msgChan <- &service.Message{
-					Context:      context.WithValue(ctx, messageKey{}, update.Message),
-					Content:      update.Message.Text,
-					UserIdentity: strconv.FormatInt(update.Message.From.ID, 10),
-					ConvKey:      strconv.FormatInt(update.Message.Chat.ID, 10),
+			if update.Message == nil || update.Message.Chat == nil || update.Message.Text == "" {
+				continue
+			}
+
+			allowed := len(b.cfg.Whitelist) == 0
+			for _, id := range b.cfg.Whitelist {
+				if strconv.FormatInt(update.Message.Chat.ID, 10) == id || strconv.FormatInt(update.Message.From.ID, 10) == id {
+					allowed = true
+					break
 				}
 			}
-		}
+			if !allowed {
+				continue
+			}
 
+			prefix := "@" + b.client.Self.UserName
+			if update.Message.Chat.IsGroup() || update.Message.Chat.IsSuperGroup() {
+				if !strings.HasPrefix(update.Message.Text, prefix) {
+					continue
+				}
+			}
+			update.Message.Text = strings.TrimSpace(strings.TrimPrefix(update.Message.Text, prefix))
+
+			messageCtx := context.WithValue(ctx, messageKey{}, update.Message)
+			msgChan <- &service.Message{
+				Context:      messageCtx,
+				Content:      update.Message.Text,
+				UserIdentity: strconv.FormatInt(update.Message.From.ID, 10),
+				ConvKey:      strconv.FormatInt(update.Message.Chat.ID, 10),
+			}
+		}
 		select {
 		case <-ctx.Done():
 			b.client.StopReceivingUpdates()
