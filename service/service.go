@@ -9,7 +9,7 @@ import (
 	"github.com/pandodao/botastic-go"
 )
 
-type Adaptor interface {
+type Adapter interface {
 	GetMessageChan(ctx context.Context) <-chan *Message
 	GetResultChan(ctx context.Context) chan<- *Result
 }
@@ -18,7 +18,7 @@ type Handler struct {
 	cfg     config.GeneralConfig
 	client  *botastic.Client
 	store   store.Store
-	adaptor Adaptor
+	adapter Adapter
 }
 
 type Message struct {
@@ -38,19 +38,19 @@ type Result struct {
 	IgnoreIfError bool
 }
 
-func NewHandler(cfg config.GeneralConfig, store store.Store, adaptor Adaptor) *Handler {
+func NewHandler(cfg config.GeneralConfig, store store.Store, adapter Adapter) *Handler {
 	client := botastic.New(cfg.Botastic.AppId, "", botastic.WithDebug(cfg.Botastic.Debug), botastic.WithHost(cfg.Botastic.Host))
 	return &Handler{
 		cfg:     cfg,
 		client:  client,
 		store:   store,
-		adaptor: adaptor,
+		adapter: adapter,
 	}
 }
 
 func (h *Handler) Start(ctx context.Context) error {
-	msgChan := h.adaptor.GetMessageChan(ctx)
-	resultChan := h.adaptor.GetResultChan(ctx)
+	msgChan := h.adapter.GetMessageChan(ctx)
+	resultChan := h.adapter.GetResultChan(ctx)
 
 	for {
 		select {

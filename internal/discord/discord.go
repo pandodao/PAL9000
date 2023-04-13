@@ -11,7 +11,7 @@ import (
 	"github.com/pandodao/PAL9000/service"
 )
 
-var _ service.Adaptor = (*Bot)(nil)
+var _ service.Adapter = (*Bot)(nil)
 
 type messageKey struct{}
 type sessionKey struct{}
