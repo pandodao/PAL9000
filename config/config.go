@@ -103,7 +103,7 @@ func ExampleConfig() *Config {
 			},
 			Botastic: &BotasticConfig{
 				AppId: "cab1582e-9c30-4d1e-9246-a5c80f74f8f9",
-				Host:  "https://botastic-api.aspens.rocks",
+				Host:  "https://botastic-api.pando.im",
 				Debug: true,
 			},
 		},
@@ -130,7 +130,7 @@ func ExampleConfig() *Config {
 							},
 							Botastic: &BotasticConfig{
 								AppId: "cab1582e-9c30-4d1e-9246-a5c80f74f8f9",
-								Host:  "https://botastic-api.aspens.rocks",
+								Host:  "https://botastic-api.pando.im",
 							},
 						},
 					},
