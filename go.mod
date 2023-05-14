@@ -8,6 +8,7 @@ require (
 	github.com/fox-one/pkg/uuid v0.0.1
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/pandodao/botastic-go v0.0.2
+	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/yaml.v3 v3.0.1

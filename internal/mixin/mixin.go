@@ -13,6 +13,7 @@ import (
 	"github.com/fox-one/pkg/uuid"
 	"github.com/pandodao/PAL9000/config"
 	"github.com/pandodao/PAL9000/service"
+	"github.com/sirupsen/logrus"
 )
 
 type (
@@ -31,6 +32,7 @@ type Bot struct {
 	msgChan chan *service.Message
 	me      *mixin.User
 	cfg     config.MixinConfig
+	logger  logrus.FieldLogger
 }
 
 func Init(ctx context.Context, cfg config.MixinConfig) (*Bot, error) {
@@ -61,18 +63,21 @@ func Init(ctx context.Context, cfg config.MixinConfig) (*Bot, error) {
 		msgChan: make(chan *service.Message),
 		cfg:     cfg,
 		me:      me,
+		logger:  logrus.WithField("adapter", "mixin"),
 	}, nil
 }
 
 func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 	go func() {
 		for {
+			b.logger.Info("start to get message")
 			if err := b.client.LoopBlaze(ctx, mixin.BlazeListenFunc(b.run)); err != nil {
-				log.Printf("mixinClient.LoopBlaze error: %v\n", err)
+				b.logger.WithError(err).Error("loop blaze error")
 			}
 
 			select {
 			case <-ctx.Done():
+				b.logger.Info("get message chan done")
 				close(b.msgChan)
 				return
 			case <-time.After(time.Second):
@@ -89,7 +94,9 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 		for {
 			select {
 			case r := <-resultChan:
+				b.logger.WithField("result", r).Info("get result")
 				if r.Err != nil && r.IgnoreIfError {
+					b.logger.WithError(r.Err).Error("ignore error")
 					continue
 				}
 
@@ -115,13 +122,14 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 				}
 				mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
 				if err := b.client.SendMessage(ctx, mq); err != nil {
-					log.Printf("mixinClient.SendMessage error: %v\n", err)
+					b.logger.WithError(err).Error("send message error")
 					go func() {
 						time.Sleep(time.Second)
 						resultChan <- r
 					}()
 				}
 			case <-ctx.Done():
+				b.logger.Info("get result chan done")
 				close(resultChan)
 				return
 			}

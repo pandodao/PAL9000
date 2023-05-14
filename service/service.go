@@ -7,6 +7,7 @@ import (
 	"github.com/pandodao/PAL9000/config"
 	"github.com/pandodao/PAL9000/store"
 	"github.com/pandodao/botastic-go"
+	"github.com/sirupsen/logrus"
 )
 
 type Adapter interface {
@@ -19,6 +20,7 @@ type Handler struct {
 	client  *botastic.Client
 	store   store.Store
 	adapter Adapter
+	logger  *logrus.Entry
 }
 
 type Message struct {
@@ -45,6 +47,7 @@ func NewHandler(cfg config.GeneralConfig, store store.Store, adapter Adapter) *H
 		client:  client,
 		store:   store,
 		adapter: adapter,
+		logger:  logrus.WithField("adapter", fmt.Sprintf("%T", adapter)).WithField("component", "service"),
 	}
 }
 
@@ -55,6 +58,7 @@ func (h *Handler) Start(ctx context.Context) error {
 	for {
 		select {
 		case msg := <-msgChan:
+			h.logger.WithField("msg", msg).Info("received message")
 			if msg.BotID == 0 {
 				msg.BotID = h.cfg.Bot.BotID
 			}
@@ -63,6 +67,11 @@ func (h *Handler) Start(ctx context.Context) error {
 			}
 
 			turn, err := h.handleMessage(ctx, msg)
+			h.logger.WithFields(logrus.Fields{
+				"turn":       turn,
+				"result_err": err,
+			}).Info("handled message")
+
 			resultChan <- &Result{
 				Message:       msg,
 				ConvTurn:      turn,
