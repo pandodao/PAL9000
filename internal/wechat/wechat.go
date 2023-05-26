@@ -139,7 +139,7 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 				func() {
 					ctx := r.Message.Context
 					w := ctx.Value(httpResponseKey{}).(http.ResponseWriter)
-					if r.Err != nil && r.IgnoreIfError {
+					if r.Err != nil && r.Options.IgnoreIfError {
 						w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 						w.Write([]byte("<xml></xml>"))
 						return
@@ -152,7 +152,8 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 					if r.Err != nil {
 						text = r.Err.Error()
 					} else {
-						text = r.ConvTurn.Response
+						// TODO
+						text = r.Turns[0].Response
 					}
 
 					responseMessage := TextMessage{

@@ -95,19 +95,20 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 		for {
 			select {
 			case r := <-resultChan:
-				if r.Err != nil && r.IgnoreIfError {
-					continue
-				}
-				text := ""
-				if r.Err != nil {
-					text = r.Err.Error()
-				} else {
-					text = r.ConvTurn.Response
-				}
 				msg := r.Message.Context.Value(messageKey{}).(*discordgo.MessageCreate)
 				s := r.Message.Context.Value(sessionKey{}).(*discordgo.Session)
-				if _, err := s.ChannelMessageSend(msg.ChannelID, text); err != nil {
-					log.Printf("error sending message to Discord, %v\n", err)
+				if len(r.Turns) > 0 && (r.Err == nil || !r.Options.IgnoreTurnsIfError) {
+					for _, turn := range r.Turns {
+						if _, err := s.ChannelMessageSend(msg.ChannelID, turn.Response); err != nil {
+							log.Printf("error sending message to Discord, %v\n", err)
+						}
+					}
+				}
+
+				if r.Err != nil && !r.Options.IgnoreIfError {
+					if _, err := s.ChannelMessageSend(msg.ChannelID, r.Err.Error()); err != nil {
+						log.Printf("error sending message to Discord, %v\n", err)
+					}
 				}
 			case <-ctx.Done():
 				close(resultChan)

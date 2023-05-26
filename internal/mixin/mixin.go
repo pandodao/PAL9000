@@ -95,38 +95,52 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 			select {
 			case r := <-resultChan:
 				b.logger.WithField("result", r).Info("get result")
-				if r.Err != nil && r.IgnoreIfError {
-					b.logger.WithError(r.Err).Error("ignore error")
-					continue
-				}
 
 				msg := r.Message.Context.Value(messageKey{}).(mixin.MessageView)
 				user := r.Message.Context.Value(userKey{}).(*mixin.User)
 				conv := r.Message.Context.Value(convKey{}).(*mixin.Conversation)
 
-				mq := &mixin.MessageRequest{
-					ConversationID: msg.ConversationID,
-					MessageID:      uuid.Modify(msg.MessageID, "reply"),
-					Category:       msg.Category,
-				}
+				if len(r.Turns) > 0 && (r.Err == nil || !r.Options.IgnoreTurnsIfError) {
+					for i, turn := range r.Turns {
+						mq := &mixin.MessageRequest{
+							ConversationID: msg.ConversationID,
+							MessageID:      uuid.Modify(msg.MessageID, fmt.Sprintf("reply-%d", i)),
+							Category:       msg.Category,
+						}
 
-				text := ""
-				if r.Err != nil {
-					text = r.Err.Error()
-				} else {
-					text = r.ConvTurn.Response
+						text := turn.Response
+						if conv.Category == mixin.ConversationCategoryGroup {
+							text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, r.Message.Content, text)
+						}
+						mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
+						if err := b.client.SendMessage(ctx, mq); err != nil {
+							b.logger.WithError(err).Error("send message error")
+							go func() {
+								time.Sleep(time.Second)
+								resultChan <- r
+							}()
+						}
+					}
 				}
+				if r.Err != nil && !r.Options.IgnoreIfError {
+					mq := &mixin.MessageRequest{
+						ConversationID: msg.ConversationID,
+						MessageID:      uuid.Modify(msg.MessageID, fmt.Sprintf("reply-err")),
+						Category:       msg.Category,
+					}
 
-				if conv.Category == mixin.ConversationCategoryGroup {
-					text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, r.Message.Content, text)
-				}
-				mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
-				if err := b.client.SendMessage(ctx, mq); err != nil {
-					b.logger.WithError(err).Error("send message error")
-					go func() {
-						time.Sleep(time.Second)
-						resultChan <- r
-					}()
+					text := r.Err.Error()
+					if conv.Category == mixin.ConversationCategoryGroup {
+						text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, r.Message.Content, text)
+					}
+					mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
+					if err := b.client.SendMessage(ctx, mq); err != nil {
+						b.logger.WithError(err).Error("send message error")
+						go func() {
+							time.Sleep(time.Second)
+							resultChan <- r
+						}()
+					}
 				}
 			case <-ctx.Done():
 				b.logger.Info("get result chan done")
