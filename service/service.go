@@ -24,20 +24,26 @@ type Handler struct {
 }
 
 type Message struct {
-	Context context.Context
-	BotID   uint64
-	Lang    string
+	Context context.Context `json:"-"`
+	BotID   uint64          `json:"bot_id"`
+	Lang    string          `json:"lang"`
 
-	UserIdentity string
-	ConvKey      string
-	Content      string
+	UserIdentity string `json:"user_identity"`
+	ConvKey      string `json:"conv_key"`
+	Content      string `json:"content"`
+}
+
+type ConvTurn struct {
+	*botastic.ConvTurn
+	IsPluginCustomResponse bool
+	ResponseModified       bool
 }
 
 type Result struct {
-	Message       *Message
-	ConvTurn      *botastic.ConvTurn
-	Err           error
-	IgnoreIfError bool
+	Message *Message
+	Turns   []*ConvTurn
+	Err     error
+	Options config.GeneralOptionsConfig
 }
 
 func NewHandler(cfg config.GeneralConfig, store store.Store, adapter Adapter) *Handler {
@@ -66,17 +72,12 @@ func (h *Handler) Start(ctx context.Context) error {
 				msg.Lang = h.cfg.Bot.Lang
 			}
 
-			turn, err := h.handleMessage(ctx, msg)
-			h.logger.WithFields(logrus.Fields{
-				"turn":       turn,
-				"result_err": err,
-			}).Info("handled message")
-
+			turns, err := h.handleMessage(ctx, msg)
 			resultChan <- &Result{
-				Message:       msg,
-				ConvTurn:      turn,
-				IgnoreIfError: h.cfg.Options.IgnoreIfError,
-				Err:           err,
+				Turns:   turns,
+				Message: msg,
+				Err:     err,
+				Options: *h.cfg.Options,
 			}
 		case <-ctx.Done():
 			return ctx.Err()
@@ -84,7 +85,7 @@ func (h *Handler) Start(ctx context.Context) error {
 	}
 }
 
-func (h *Handler) handleMessage(ctx context.Context, m *Message) (*botastic.ConvTurn, error) {
+func (h *Handler) handleMessage(ctx context.Context, m *Message) ([]*ConvTurn, error) {
 	conv, err := h.store.GetConversationByKey(m.ConvKey)
 	if err != nil {
 		return nil, err
@@ -105,23 +106,63 @@ func (h *Handler) handleMessage(ctx context.Context, m *Message) (*botastic.Conv
 		}
 	}
 
+	pbr, err := h.handlePluginExecuteBefore(ctx, *m)
+	if err != nil {
+		return nil, err
+	}
+
+	turns := []*ConvTurn{}
+	if pbr != nil {
+		if pbr.ModifiedRequest != "" {
+			m.Content = pbr.ModifiedRequest
+		}
+
+		for _, r := range pbr.CustomResponse {
+			turns = append(turns, &ConvTurn{
+				IsPluginCustomResponse: true,
+				ConvTurn: &botastic.ConvTurn{
+					Status:   2,
+					Response: r,
+				},
+			})
+		}
+	}
+
+	if pbr.TerminateRequest {
+		return turns, nil
+	}
+
 	convTurn, err := h.client.PostToConversation(ctx, botastic.PostToConversationPayloadRequest{
 		ConversationID: conv.ID,
 		Content:        m.Content,
 		Category:       "plain-text",
 	})
 	if err != nil {
-		return nil, err
+		return turns, err
 	}
 
 	turn, err := h.client.GetConvTurn(ctx, conv.ID, convTurn.ID, true)
 	if err != nil {
 		// TODO: retry
-		return nil, err
+		return turns, err
 	}
 	if turn.Status != 2 {
-		return nil, fmt.Errorf("unexpected status: %d", turn.Status)
+		return turns, fmt.Errorf("unexpected status: %d", turn.Status)
 	}
 
-	return turn, nil
+	par, err := h.handlePluginExecuteAfter(ctx, turn)
+	if err != nil {
+		return turns, err
+	}
+
+	responseModified := false
+	if par != nil {
+		if par.ModifiedResponse != "" {
+			responseModified = true
+			turn.Response = par.ModifiedResponse
+		}
+	}
+
+	turns = append(turns, &ConvTurn{ConvTurn: turn, ResponseModified: responseModified})
+	return turns, nil
 }

@@ -90,20 +90,21 @@ func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
 		for {
 			select {
 			case r := <-resultChan:
-				if r.Err != nil && r.IgnoreIfError {
-					continue
-				}
-				text := ""
-				if r.Err != nil {
-					text = r.Err.Error()
-				} else {
-					text = r.ConvTurn.Response
-				}
 				msg := r.Message.Context.Value(messageKey{}).(*tgbotapi.Message)
-				reply := tgbotapi.NewMessage(msg.Chat.ID, text)
-				reply.ReplyToMessageID = msg.MessageID
-				if _, err := b.client.Send(reply); err != nil {
-					fmt.Printf("send reply failed: %v\n", err)
+				if len(r.Turns) > 0 && (r.Err == nil || !r.Options.IgnoreTurnsIfError) {
+					for _, turn := range r.Turns {
+						reply := tgbotapi.NewMessage(msg.Chat.ID, turn.Response)
+						if _, err := b.client.Send(reply); err != nil {
+							fmt.Printf("send reply failed: %v\n", err)
+						}
+					}
+				}
+
+				if r.Err != nil && !r.Options.IgnoreIfError {
+					reply := tgbotapi.NewMessage(msg.Chat.ID, r.Err.Error())
+					if _, err := b.client.Send(reply); err != nil {
+						fmt.Printf("send reply failed: %v\n", err)
+					}
 				}
 			case <-ctx.Done():
 				close(resultChan)

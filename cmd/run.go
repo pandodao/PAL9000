@@ -29,7 +29,7 @@ var runCmd = &cobra.Command{
 		cmd.SetContext(context.WithValue(cmd.Context(), configKey{}, cfg))
 		ctx := cmd.Context()
 
-		startHandler := func(h *service.Handler, name string, adapterCfg config.AdapterConfig) error {
+		startHandler := func(h *service.Handler, name string, adapterCfg *config.AdapterConfig) error {
 			fmt.Printf("Starting adapter, name: %s, driver: %s\n", name, adapterCfg.Driver)
 			return h.Start(ctx)
 		}
@@ -46,7 +46,7 @@ var runCmd = &cobra.Command{
 						return err
 					}
 
-					h := service.NewHandler(getGeneralConfig(cfg.General, adapter.Mixin.GeneralConfig), store.NewMemoryStore(), b)
+					h := service.NewHandler(adapter.OverrideGeneral, store.NewMemoryStore(), b)
 					return startHandler(h, name, adapter)
 				})
 			case "telegram":
@@ -56,19 +56,19 @@ var runCmd = &cobra.Command{
 						return err
 					}
 
-					h := service.NewHandler(getGeneralConfig(cfg.General, adapter.Telegram.GeneralConfig), store.NewMemoryStore(), b)
+					h := service.NewHandler(adapter.OverrideGeneral, store.NewMemoryStore(), b)
 					return startHandler(h, name, adapter)
 				})
 			case "discord":
 				g.Go(func() error {
 					b := discord.New(*adapter.Discord)
-					h := service.NewHandler(getGeneralConfig(cfg.General, adapter.Discord.GeneralConfig), store.NewMemoryStore(), b)
+					h := service.NewHandler(adapter.OverrideGeneral, store.NewMemoryStore(), b)
 					return startHandler(h, name, adapter)
 				})
 			case "wechat":
 				g.Go(func() error {
 					b := wechat.New(*adapter.WeChat)
-					h := service.NewHandler(getGeneralConfig(cfg.General, adapter.WeChat.GeneralConfig), store.NewMemoryStore(), b)
+					h := service.NewHandler(adapter.OverrideGeneral, store.NewMemoryStore(), b)
 					return startHandler(h, name, adapter)
 				})
 			}
@@ -80,19 +80,4 @@ var runCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(runCmd)
-}
-
-func getGeneralConfig(defaultCfg, overrideCfg config.GeneralConfig) config.GeneralConfig {
-	cfg := defaultCfg
-	if overrideCfg.Bot != nil {
-		cfg.Bot = overrideCfg.Bot
-	}
-	if overrideCfg.Botastic != nil {
-		cfg.Botastic = overrideCfg.Botastic
-	}
-	if overrideCfg.Options != nil {
-		cfg.Options = overrideCfg.Options
-	}
-
-	return cfg
 }

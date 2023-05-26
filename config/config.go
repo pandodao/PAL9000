@@ -3,13 +3,18 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
+	"plugin"
 
 	"gopkg.in/yaml.v3"
 )
 
+type Plugin interface {
+	PluginName() string
+}
+
 type Config struct {
-	General  GeneralConfig  `yaml:"general"`
-	Adapters AdaptersConfig `yaml:"adapters"`
+	General  GeneralConfig   `yaml:"general"`
+	Adapters *AdaptersConfig `yaml:"adapters"`
 }
 
 func (s *Config) String() string {
@@ -28,55 +33,64 @@ type BotasticConfig struct {
 	Debug bool   `yaml:"debug"`
 }
 
+type PluginItem struct {
+	parsed bool
+
+	IgnoreIfError             bool   `yaml:"ignore_if_error"`
+	AllowedToTerminatePlugins bool   `yaml:"allowed_to_terminate_plugins"`
+	AllowedToTerminateRequest bool   `yaml:"allowed_to_terminate_request"`
+	Path                      string `yaml:"path"`
+	Plugin                    Plugin `yaml:"-"`
+}
+
 type GeneralOptionsConfig struct {
-	IgnoreIfError bool `yaml:"ignore_if_error"`
+	IgnoreIfError      bool `yaml:"ignore_if_error"`
+	IgnoreTurnsIfError bool `yaml:"ignore_turns_if_error"`
+}
+
+type GeneralPluginsConfig struct {
+	Items []*PluginItem `yaml:"items"`
 }
 
 type GeneralConfig struct {
 	Options  *GeneralOptionsConfig `yaml:"options,omitempty"`
+	Plugins  *GeneralPluginsConfig `yaml:"plugins,omitempty"`
 	Bot      *BotConfig            `yaml:"bot,omitempty"`
 	Botastic *BotasticConfig       `yaml:"botastic,omitempty"`
 }
 
 type AdaptersConfig struct {
-	Enabled []string                 `yaml:"enabled"`
-	Items   map[string]AdapterConfig `yaml:"items"`
+	Enabled []string                  `yaml:"enabled"`
+	Items   map[string]*AdapterConfig `yaml:"items"`
 }
 
 type AdapterConfig struct {
-	Driver   string          `yaml:"driver"`
-	Mixin    *MixinConfig    `yaml:"mixin,omitempty"`
-	Telegram *TelegramConfig `yaml:"telegram,omitempty"`
-	Discord  *DiscordConfig  `yaml:"discord,omitempty"`
-	WeChat   *WeChatConfig   `yaml:"wechat,omitempty"`
+	Driver          string          `yaml:"driver"`
+	OverrideGeneral GeneralConfig   `yaml:"override_general,omitempty"`
+	Mixin           *MixinConfig    `yaml:"mixin,omitempty"`
+	Telegram        *TelegramConfig `yaml:"telegram,omitempty"`
+	Discord         *DiscordConfig  `yaml:"discord,omitempty"`
+	WeChat          *WeChatConfig   `yaml:"wechat,omitempty"`
 }
 
 type WeChatConfig struct {
-	GeneralConfig `yaml:",inline"`
-
 	Address string `yaml:"address"`
 	Path    string `yaml:"path"`
 	Token   string `yaml:"token"`
 }
 
 type MixinConfig struct {
-	GeneralConfig `yaml:",inline"`
-
 	Keystore  string   `yaml:"keystore"` // base64 encoded keystore (json format)
 	Whitelist []string `yaml:"whitelist"`
 }
 
 type TelegramConfig struct {
-	GeneralConfig `yaml:",inline"`
-
 	Debug     bool     `yaml:"debug"`
 	Token     string   `yaml:"token"`
 	Whitelist []string `yaml:"whitelist"`
 }
 
 type DiscordConfig struct {
-	GeneralConfig `yaml:",inline"`
-
 	Token     string   `yaml:"token"`
 	Whitelist []string `yaml:"whitelist"`
 }
@@ -87,6 +101,8 @@ func DefaultConfig() *Config {
 			Options: &GeneralOptionsConfig{
 				IgnoreIfError: true,
 			},
+			Plugins:  &GeneralPluginsConfig{},
+			Botastic: &BotasticConfig{},
 			Bot: &BotConfig{
 				Lang: "en",
 			},
@@ -106,10 +122,24 @@ func ExampleConfig() *Config {
 				Host:  "https://botastic-api.pando.im",
 				Debug: true,
 			},
+			Options: &GeneralOptionsConfig{
+				IgnoreIfError:      true,
+				IgnoreTurnsIfError: true,
+			},
+			Plugins: &GeneralPluginsConfig{
+				Items: []*PluginItem{
+					{
+						IgnoreIfError:             true,
+						AllowedToTerminatePlugins: true,
+						AllowedToTerminateRequest: true,
+						Path:                      "plugins/echo.so",
+					},
+				},
+			},
 		},
-		Adapters: AdaptersConfig{
+		Adapters: &AdaptersConfig{
 			Enabled: []string{"test_mixin", "test_telegram", "test_discord", "test_wechat"},
-			Items: map[string]AdapterConfig{
+			Items: map[string]*AdapterConfig{
 				"test_mixin": {
 					Driver: "mixin",
 					Mixin: &MixinConfig{
@@ -119,20 +149,20 @@ func ExampleConfig() *Config {
 				},
 				"test_telegram": {
 					Driver: "telegram",
+					OverrideGeneral: GeneralConfig{
+						Bot: &BotConfig{
+							BotID: 2,
+							Lang:  "zh",
+						},
+						Botastic: &BotasticConfig{
+							AppId: "cab1582e-9c30-4d1e-9246-a5c80f74f8f9",
+							Host:  "https://botastic-api.pando.im",
+						},
+					},
 					Telegram: &TelegramConfig{
 						Debug:     true,
 						Token:     "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
 						Whitelist: []string{"-10540154212", "xx"},
-						GeneralConfig: GeneralConfig{
-							Bot: &BotConfig{
-								BotID: 2,
-								Lang:  "zh",
-							},
-							Botastic: &BotasticConfig{
-								AppId: "cab1582e-9c30-4d1e-9246-a5c80f74f8f9",
-								Host:  "https://botastic-api.pando.im",
-							},
-						},
 					},
 				},
 				"test_discord": {
@@ -155,34 +185,78 @@ func ExampleConfig() *Config {
 	}
 }
 
-func (c Config) validate() error {
+func (c *Config) validate() error {
 	for _, name := range c.Adapters.Enabled {
 		if _, ok := c.Adapters.Items[name]; !ok {
 			return fmt.Errorf("adapter not found: %s", name)
 		}
 	}
-	for name, c := range c.Adapters.Items {
-		switch c.Driver {
+	for name, adapter := range c.Adapters.Items {
+		switch adapter.Driver {
 		case "mixin":
-			if c.Mixin == nil {
-				return fmt.Errorf("config not found, name: %s, driver: %s", name, c.Driver)
+			if adapter.Mixin == nil {
+				return fmt.Errorf("config not found, name: %s, driver: %s", name, adapter.Driver)
 			}
 		case "telegram":
-			if c.Telegram == nil {
-				return fmt.Errorf("config not found, name: %s, driver: %s", name, c.Driver)
+			if adapter.Telegram == nil {
+				return fmt.Errorf("config not found, name: %s, driver: %s", name, adapter.Driver)
 			}
 		case "discord":
-			if c.Discord == nil {
-				return fmt.Errorf("config not found, name: %s, driver: %s", name, c.Driver)
+			if adapter.Discord == nil {
+				return fmt.Errorf("config not found, name: %s, driver: %s", name, adapter.Driver)
 			}
 		case "wechat":
-			if c.WeChat == nil {
-				return fmt.Errorf("config not found, name: %s, driver: %s", name, c.Driver)
+			if adapter.WeChat == nil {
+				return fmt.Errorf("config not found, name: %s, driver: %s", name, adapter.Driver)
 			}
 		default:
-			return fmt.Errorf("invalid driver, name: %s, driver: %s", name, c.Driver)
+			return fmt.Errorf("invalid driver, name: %s, driver: %s", name, adapter.Driver)
 		}
 	}
+
+	for _, name := range c.Adapters.Enabled {
+		adapter, ok := c.Adapters.Items[name]
+		if !ok {
+			return fmt.Errorf("adapter not found: %s", name)
+		}
+
+		if adapter.OverrideGeneral.Botastic == nil {
+			adapter.OverrideGeneral.Botastic = c.General.Botastic
+		}
+		if adapter.OverrideGeneral.Bot == nil {
+			adapter.OverrideGeneral.Bot = c.General.Bot
+		}
+		if adapter.OverrideGeneral.Options == nil {
+			adapter.OverrideGeneral.Options = c.General.Options
+		}
+		if adapter.OverrideGeneral.Plugins == nil {
+			adapter.OverrideGeneral.Plugins = c.General.Plugins
+		}
+
+		if adapter.OverrideGeneral.Plugins != nil {
+			for _, p := range adapter.OverrideGeneral.Plugins.Items {
+				if p.parsed {
+					continue
+				}
+				plu, err := plugin.Open(p.Path)
+				if err != nil {
+					return fmt.Errorf("plugin open error, path: %s, error: %s", p.Path, err)
+				}
+				ins, err := plu.Lookup("PluginInstance")
+				if err != nil {
+					return fmt.Errorf("plugin lookup error, path: %s, error: %s", p.Path, err)
+				}
+				ok := false
+				p.Plugin, ok = ins.(Plugin)
+				if !ok {
+					return fmt.Errorf("plugin type error, path: %s", p.Path)
+				}
+
+				p.parsed = true
+			}
+		}
+	}
+
 	return nil
 }
 
