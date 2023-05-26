@@ -150,15 +150,17 @@ func (h *Handler) handleMessage(ctx context.Context, m *Message) ([]*ConvTurn, e
 		return turns, fmt.Errorf("unexpected status: %d", turn.Status)
 	}
 
-	r, err := h.handlePluginExecuteAfter(ctx, turn)
+	par, err := h.handlePluginExecuteAfter(ctx, turn)
 	if err != nil {
 		return turns, err
 	}
 
 	responseModified := false
-	if r.ModifiedResponse != "" {
-		responseModified = true
-		turn.Response = r.ModifiedResponse
+	if par != nil {
+		if par.ModifiedResponse != "" {
+			responseModified = true
+			turn.Response = par.ModifiedResponse
+		}
 	}
 
 	turns = append(turns, &ConvTurn{ConvTurn: turn, ResponseModified: responseModified})
