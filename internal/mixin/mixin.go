@@ -88,55 +88,39 @@ func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 	return b.msgChan
 }
 
-func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
-	resultChan := make(chan *service.Result)
-	go func() {
-		for {
-			select {
-			case r := <-resultChan:
-				b.logger.WithField("result", r).Info("get result")
-				if r.Err != nil && r.IgnoreIfError {
-					b.logger.WithError(r.Err).Error("ignore error")
-					continue
-				}
+func (b *Bot) HandleResult(req *service.Message, r *service.Result) {
+	defer close(req.DoneChan)
 
-				msg := r.Message.Context.Value(messageKey{}).(mixin.MessageView)
-				user := r.Message.Context.Value(userKey{}).(*mixin.User)
-				conv := r.Message.Context.Value(convKey{}).(*mixin.Conversation)
+	b.logger.WithField("result", r).Info("get result")
+	if r.Err != nil && r.IgnoreIfError {
+		b.logger.WithError(r.Err).Error("ignore error")
+		return
+	}
 
-				mq := &mixin.MessageRequest{
-					ConversationID: msg.ConversationID,
-					MessageID:      uuid.Modify(msg.MessageID, "reply"),
-					Category:       msg.Category,
-				}
+	msg := req.Context.Value(messageKey{}).(*mixin.MessageView)
+	user := req.Context.Value(userKey{}).(*mixin.User)
+	conv := req.Context.Value(convKey{}).(*mixin.Conversation)
 
-				text := ""
-				if r.Err != nil {
-					text = r.Err.Error()
-				} else {
-					text = r.ConvTurn.Response
-				}
+	mq := &mixin.MessageRequest{
+		ConversationID: msg.ConversationID,
+		MessageID:      uuid.Modify(msg.MessageID, "reply"),
+		Category:       msg.Category,
+	}
 
-				if conv.Category == mixin.ConversationCategoryGroup {
-					text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, r.Message.Content, text)
-				}
-				mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
-				if err := b.client.SendMessage(ctx, mq); err != nil {
-					b.logger.WithError(err).Error("send message error")
-					go func() {
-						time.Sleep(time.Second)
-						resultChan <- r
-					}()
-				}
-			case <-ctx.Done():
-				b.logger.Info("get result chan done")
-				close(resultChan)
-				return
-			}
-		}
-	}()
+	text := ""
+	if r.Err != nil {
+		text = r.Err.Error()
+	} else {
+		text = r.ConvTurn.Response
+	}
 
-	return resultChan
+	if conv.Category == mixin.ConversationCategoryGroup {
+		text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, req.Content, text)
+	}
+	mq.Data = base64.StdEncoding.EncodeToString([]byte(text))
+	if err := b.client.SendMessage(req.Context, mq); err != nil {
+		b.logger.WithError(err).Error("send message error")
+	}
 }
 
 func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) error {
@@ -192,17 +176,20 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 
 	content = strings.TrimSpace(strings.TrimPrefix(content, prefix))
 
-	ctx = context.WithValue(ctx, messageKey{}, *msg)
+	ctx = context.WithValue(ctx, messageKey{}, msg)
 	ctx = context.WithValue(ctx, userKey{}, user)
 	ctx = context.WithValue(ctx, convKey{}, conv)
 
+	doneChan := make(chan struct{})
 	b.msgChan <- &service.Message{
 		Context:      ctx,
 		UserIdentity: msg.UserID,
 		ConvKey:      conversationKey,
 		Content:      content,
+		DoneChan:     doneChan,
 	}
 
+	<-doneChan
 	return nil
 }
 

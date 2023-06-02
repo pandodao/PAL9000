@@ -15,7 +15,6 @@ var _ service.Adapter = (*Bot)(nil)
 
 type (
 	messageKey struct{}
-	doneKey    struct{}
 )
 
 type Bot struct {
@@ -84,33 +83,20 @@ func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 	return msgChan
 }
 
-func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
-	resultChan := make(chan *service.Result)
-	go func() {
-		for {
-			select {
-			case r := <-resultChan:
-				if r.Err != nil && r.IgnoreIfError {
-					continue
-				}
-				text := ""
-				if r.Err != nil {
-					text = r.Err.Error()
-				} else {
-					text = r.ConvTurn.Response
-				}
-				msg := r.Message.Context.Value(messageKey{}).(*tgbotapi.Message)
-				reply := tgbotapi.NewMessage(msg.Chat.ID, text)
-				reply.ReplyToMessageID = msg.MessageID
-				if _, err := b.client.Send(reply); err != nil {
-					fmt.Printf("send reply failed: %v\n", err)
-				}
-			case <-ctx.Done():
-				close(resultChan)
-				return
-			}
-		}
-	}()
-
-	return resultChan
+func (b *Bot) HandleResult(req *service.Message, r *service.Result) {
+	if r.Err != nil && r.IgnoreIfError {
+		return
+	}
+	text := ""
+	if r.Err != nil {
+		text = r.Err.Error()
+	} else {
+		text = r.ConvTurn.Response
+	}
+	msg := req.Context.Value(messageKey{}).(*tgbotapi.Message)
+	reply := tgbotapi.NewMessage(msg.Chat.ID, text)
+	reply.ReplyToMessageID = msg.MessageID
+	if _, err := b.client.Send(reply); err != nil {
+		fmt.Printf("send reply failed: %v\n", err)
+	}
 }
