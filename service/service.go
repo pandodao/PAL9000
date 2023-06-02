@@ -12,7 +12,7 @@ import (
 
 type Adapter interface {
 	GetMessageChan(ctx context.Context) <-chan *Message
-	GetResultChan(ctx context.Context) chan<- *Result
+	HandleResult(message *Message, result *Result)
 }
 
 type Handler struct {
@@ -31,10 +31,11 @@ type Message struct {
 	UserIdentity string
 	ConvKey      string
 	Content      string
+
+	DoneChan chan struct{}
 }
 
 type Result struct {
-	Message       *Message
 	ConvTurn      *botastic.ConvTurn
 	Err           error
 	IgnoreIfError bool
@@ -53,7 +54,6 @@ func NewHandler(cfg config.GeneralConfig, store store.Store, adapter Adapter) *H
 
 func (h *Handler) Start(ctx context.Context) error {
 	msgChan := h.adapter.GetMessageChan(ctx)
-	resultChan := h.adapter.GetResultChan(ctx)
 
 	for {
 		select {
@@ -71,13 +71,11 @@ func (h *Handler) Start(ctx context.Context) error {
 				"turn":       turn,
 				"result_err": err,
 			}).Info("handled message")
-
-			resultChan <- &Result{
-				Message:       msg,
+			h.adapter.HandleResult(msg, &Result{
 				ConvTurn:      turn,
 				IgnoreIfError: h.cfg.Options.IgnoreIfError,
 				Err:           err,
-			}
+			})
 		case <-ctx.Done():
 			return ctx.Err()
 		}

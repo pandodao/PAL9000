@@ -20,7 +20,6 @@ import (
 type httpRequsetKey struct{}
 type httpResponseKey struct{}
 type rawMessageKey struct{}
-type doneChanKey struct{}
 
 type TextMessage struct {
 	XMLName      xml.Name `xml:"xml"`
@@ -92,19 +91,18 @@ func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 				return
 			}
 
-			doneChan := make(chan struct{})
 			ctx = r.Context()
 			ctx = context.WithValue(ctx, httpRequsetKey{}, r)
 			ctx = context.WithValue(ctx, httpResponseKey{}, w)
 			ctx = context.WithValue(ctx, rawMessageKey{}, receivedMessage)
-			ctx = context.WithValue(ctx, doneChanKey{}, doneChan)
+			doneChan := make(chan struct{})
 			msgChan <- &service.Message{
 				Context:      ctx,
 				UserIdentity: receivedMessage.FromUserName,
 				ConvKey:      receivedMessage.FromUserName,
 				Content:      receivedMessage.Content,
+				DoneChan:     doneChan,
 			}
-
 			<-doneChan
 		})
 
@@ -130,54 +128,38 @@ func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 	return msgChan
 }
 
-func (b *Bot) GetResultChan(ctx context.Context) chan<- *service.Result {
-	resultChan := make(chan *service.Result)
-	go func() {
-		for {
-			select {
-			case r := <-resultChan:
-				func() {
-					ctx := r.Message.Context
-					w := ctx.Value(httpResponseKey{}).(http.ResponseWriter)
-					if r.Err != nil && r.IgnoreIfError {
-						w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-						w.Write([]byte("<xml></xml>"))
-						return
-					}
-					doneChan := ctx.Value(doneChanKey{}).(chan struct{})
-					receivedMessage := ctx.Value(rawMessageKey{}).(TextMessage)
-					defer close(doneChan)
+func (b *Bot) HandleResult(req *service.Message, r *service.Result) {
+	defer close(req.DoneChan)
 
-					text := ""
-					if r.Err != nil {
-						text = r.Err.Error()
-					} else {
-						text = r.ConvTurn.Response
-					}
+	w := req.Context.Value(httpResponseKey{}).(http.ResponseWriter)
+	if r.Err != nil && r.IgnoreIfError {
+		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		w.Write([]byte("<xml></xml>"))
+		return
+	}
+	receivedMessage := req.Context.Value(rawMessageKey{}).(TextMessage)
 
-					responseMessage := TextMessage{
-						ToUserName:   receivedMessage.FromUserName,
-						FromUserName: receivedMessage.ToUserName,
-						CreateTime:   time.Now().Unix(),
-						MsgType:      "text",
-						Content:      text,
-					}
+	text := ""
+	if r.Err != nil {
+		text = r.Err.Error()
+	} else {
+		text = r.ConvTurn.Response
+	}
 
-					responseXML, err := xml.MarshalIndent(responseMessage, "", "  ")
-					if err != nil {
-						http.Error(w, "Failed to create response", http.StatusInternalServerError)
-						return
-					}
+	responseMessage := TextMessage{
+		ToUserName:   receivedMessage.FromUserName,
+		FromUserName: receivedMessage.ToUserName,
+		CreateTime:   time.Now().Unix(),
+		MsgType:      "text",
+		Content:      text,
+	}
 
-					w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-					w.Write(responseXML)
-				}()
-			case <-ctx.Done():
-				close(resultChan)
-				return
-			}
-		}
-	}()
+	responseXML, err := xml.MarshalIndent(responseMessage, "", "  ")
+	if err != nil {
+		http.Error(w, "Failed to create response", http.StatusInternalServerError)
+		return
+	}
 
-	return resultChan
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Write(responseXML)
 }
