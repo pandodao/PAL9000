@@ -11,6 +11,7 @@ import (
 )
 
 type Adapter interface {
+	GetName() string
 	GetMessageChan(ctx context.Context) <-chan *Message
 	HandleResult(message *Message, result *Result)
 }
@@ -48,7 +49,7 @@ func NewHandler(cfg config.GeneralConfig, store store.Store, adapter Adapter) *H
 		client:  client,
 		store:   store,
 		adapter: adapter,
-		logger:  logrus.WithField("adapter", fmt.Sprintf("%T", adapter)).WithField("component", "service"),
+		logger:  logrus.WithField("adapter", fmt.Sprintf("%T", adapter)).WithField("component", "service").WithField("adapter_name", adapter.GetName()),
 	}
 }
 
