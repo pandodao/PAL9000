@@ -32,13 +32,19 @@ type TextMessage struct {
 }
 
 type Bot struct {
-	cfg config.WeChatConfig
+	name string
+	cfg  config.WeChatConfig
 }
 
-func New(cfg config.WeChatConfig) *Bot {
+func New(name string, cfg config.WeChatConfig) *Bot {
 	return &Bot{
-		cfg: cfg,
+		name: name,
+		cfg:  cfg,
 	}
+}
+
+func (b *Bot) GetName() string {
+	return b.name
 }
 
 func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {

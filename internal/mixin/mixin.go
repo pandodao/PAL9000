@@ -25,6 +25,7 @@ type (
 var _ service.Adapter = (*Bot)(nil)
 
 type Bot struct {
+	name    string
 	convMap map[string]*mixin.Conversation
 	userMap map[string]*mixin.User
 
@@ -35,7 +36,7 @@ type Bot struct {
 	logger  logrus.FieldLogger
 }
 
-func Init(ctx context.Context, cfg config.MixinConfig) (*Bot, error) {
+func Init(ctx context.Context, name string, cfg config.MixinConfig) (*Bot, error) {
 	data, err := base64.StdEncoding.DecodeString(cfg.Keystore)
 	if err != nil {
 		return nil, fmt.Errorf("base64 decode keystore error: %w", err)
@@ -57,14 +58,19 @@ func Init(ctx context.Context, cfg config.MixinConfig) (*Bot, error) {
 	}
 
 	return &Bot{
+		name:    name,
 		convMap: make(map[string]*mixin.Conversation),
 		userMap: make(map[string]*mixin.User),
 		client:  client,
 		msgChan: make(chan *service.Message),
 		cfg:     cfg,
 		me:      me,
-		logger:  logrus.WithField("adapter", "mixin"),
+		logger:  logrus.WithField("adapter", "mixin").WithField("name", name),
 	}, nil
+}
+
+func (b *Bot) GetName() string {
+	return b.name
 }
 
 func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
@@ -124,6 +130,8 @@ func (b *Bot) HandleResult(req *service.Message, r *service.Result) {
 }
 
 func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) error {
+	b.logger.WithField("msg", msg).Info("in run func, get message")
+
 	if msg.Category != mixin.MessageCategoryPlainText {
 		return nil
 	}

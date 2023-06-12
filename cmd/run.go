@@ -41,7 +41,7 @@ var runCmd = &cobra.Command{
 			switch adapter.Driver {
 			case "mixin":
 				g.Go(func() error {
-					b, err := mixin.Init(ctx, *adapter.Mixin)
+					b, err := mixin.Init(ctx, name, *adapter.Mixin)
 					if err != nil {
 						return err
 					}
@@ -51,7 +51,7 @@ var runCmd = &cobra.Command{
 				})
 			case "telegram":
 				g.Go(func() error {
-					b, err := telegram.Init(*adapter.Telegram)
+					b, err := telegram.Init(name, *adapter.Telegram)
 					if err != nil {
 						return err
 					}
@@ -61,13 +61,13 @@ var runCmd = &cobra.Command{
 				})
 			case "discord":
 				g.Go(func() error {
-					b := discord.New(*adapter.Discord)
+					b := discord.New(name, *adapter.Discord)
 					h := service.NewHandler(getGeneralConfig(cfg.General, adapter.Discord.GeneralConfig), store.NewMemoryStore(), b)
 					return startHandler(h, name, adapter)
 				})
 			case "wechat":
 				g.Go(func() error {
-					b := wechat.New(*adapter.WeChat)
+					b := wechat.New(name, *adapter.WeChat)
 					h := service.NewHandler(getGeneralConfig(cfg.General, adapter.WeChat.GeneralConfig), store.NewMemoryStore(), b)
 					return startHandler(h, name, adapter)
 				})

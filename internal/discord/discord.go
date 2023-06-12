@@ -17,13 +17,19 @@ type messageKey struct{}
 type sessionKey struct{}
 
 type Bot struct {
-	cfg config.DiscordConfig
+	name string
+	cfg  config.DiscordConfig
 }
 
-func New(cfg config.DiscordConfig) *Bot {
+func New(name string, cfg config.DiscordConfig) *Bot {
 	return &Bot{
-		cfg: cfg,
+		name: name,
+		cfg:  cfg,
 	}
+}
+
+func (b *Bot) GetName() string {
+	return b.name
 }
 
 func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
