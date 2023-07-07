@@ -64,16 +64,23 @@ func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 
 			prefix := "@" + b.client.Self.UserName
 			if update.Message.Chat.IsGroup() || update.Message.Chat.IsSuperGroup() {
-				if !strings.HasPrefix(update.Message.Text, prefix) {
-					continue
+				if update.Message.ReplyToMessage == nil || update.Message.ReplyToMessage.From.ID != b.client.Self.ID {
+					if !strings.HasPrefix(update.Message.Text, prefix) {
+						continue
+					}
 				}
 			}
-			update.Message.Text = strings.TrimSpace(strings.TrimPrefix(update.Message.Text, prefix))
+			replyContent := ""
+			if update.Message.ReplyToMessage != nil {
+				replyContent = update.Message.ReplyToMessage.Text
+			}
 
+			content := strings.TrimSpace(strings.TrimPrefix(update.Message.Text, prefix))
 			messageCtx := context.WithValue(ctx, messageKey{}, update.Message)
 			msgChan <- &service.Message{
+				ReplyContent: replyContent,
 				Context:      messageCtx,
-				Content:      update.Message.Text,
+				Content:      content,
 				UserIdentity: strconv.FormatInt(update.Message.From.ID, 10),
 				ConvKey:      strconv.FormatInt(update.Message.Chat.ID, 10),
 			}
@@ -101,7 +108,7 @@ func (b *Bot) HandleResult(req *service.Message, r *service.Result) {
 	}
 	msg := req.Context.Value(messageKey{}).(*tgbotapi.Message)
 	reply := tgbotapi.NewMessage(msg.Chat.ID, text)
-	reply.ReplyToMessageID = msg.MessageID
+	// reply.ReplyToMessageID = msg.MessageID
 	if _, err := b.client.Send(reply); err != nil {
 		fmt.Printf("send reply failed: %v\n", err)
 	}

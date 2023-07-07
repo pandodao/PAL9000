@@ -89,6 +89,7 @@ func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 				http.Error(w, "Failed to read request body", http.StatusBadRequest)
 				return
 			}
+			fmt.Println(string(body))
 
 			var receivedMessage TextMessage
 			err = xml.Unmarshal(body, &receivedMessage)
