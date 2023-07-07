@@ -62,8 +62,9 @@ type WeChatConfig struct {
 type MixinConfig struct {
 	GeneralConfig `yaml:",inline"`
 
-	Keystore  string   `yaml:"keystore"` // base64 encoded keystore (json format)
-	Whitelist []string `yaml:"whitelist"`
+	Keystore               string   `yaml:"keystore"` // base64 encoded keystore (json format)
+	Whitelist              []string `yaml:"whitelist"`
+	MessageCacheExpiration int64    `yaml:"message_cache_expiration"`
 }
 
 type TelegramConfig struct {
@@ -113,8 +114,9 @@ func ExampleConfig() *Config {
 				"test_mixin": {
 					Driver: "mixin",
 					Mixin: &MixinConfig{
-						Keystore:  "base64 encoded keystore",
-						Whitelist: []string{"7000104111", "a8d4e38e-9317-4529-8ca9-4289d4668111"},
+						Keystore:               "base64 encoded keystore",
+						Whitelist:              []string{"7000104111", "a8d4e38e-9317-4529-8ca9-4289d4668111"},
+						MessageCacheExpiration: 60 * 60 * 24,
 					},
 				},
 				"test_telegram": {

@@ -32,6 +32,7 @@ type Message struct {
 	UserIdentity string
 	ConvKey      string
 	Content      string
+	ReplyContent string
 
 	DoneChan chan struct{}
 }
@@ -104,9 +105,15 @@ func (h *Handler) handleMessage(ctx context.Context, m *Message) (*botastic.Conv
 		}
 	}
 
+	content := ""
+	if m.ReplyContent != "" {
+		content = fmt.Sprintf(`"%s" `, m.ReplyContent)
+	}
+	content += m.Content
+
 	convTurn, err := h.client.PostToConversation(ctx, botastic.PostToConversationPayloadRequest{
 		ConversationID: conv.ID,
-		Content:        m.Content,
+		Content:        content,
 		Category:       "plain-text",
 	})
 	if err != nil {

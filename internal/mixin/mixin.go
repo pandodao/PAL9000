@@ -13,8 +13,14 @@ import (
 	"github.com/fox-one/pkg/uuid"
 	"github.com/pandodao/PAL9000/config"
 	"github.com/pandodao/PAL9000/service"
+	"github.com/patrickmn/go-cache"
 	"github.com/sirupsen/logrus"
 )
+
+type Message struct {
+	Content string
+	UserID  string
+}
 
 type (
 	messageKey struct{}
@@ -29,11 +35,12 @@ type Bot struct {
 	convMap map[string]*mixin.Conversation
 	userMap map[string]*mixin.User
 
-	client  *mixin.Client
-	msgChan chan *service.Message
-	me      *mixin.User
-	cfg     config.MixinConfig
-	logger  logrus.FieldLogger
+	client       *mixin.Client
+	msgChan      chan *service.Message
+	me           *mixin.User
+	cfg          config.MixinConfig
+	logger       logrus.FieldLogger
+	messageCache *cache.Cache
 }
 
 func Init(ctx context.Context, name string, cfg config.MixinConfig) (*Bot, error) {
@@ -57,15 +64,20 @@ func Init(ctx context.Context, name string, cfg config.MixinConfig) (*Bot, error
 		return nil, fmt.Errorf("mixinClient.UserMe error: %w", err)
 	}
 
+	if cfg.MessageCacheExpiration == 0 {
+		cfg.MessageCacheExpiration = 60 * 60 * 24
+	}
+
 	return &Bot{
-		name:    name,
-		convMap: make(map[string]*mixin.Conversation),
-		userMap: make(map[string]*mixin.User),
-		client:  client,
-		msgChan: make(chan *service.Message),
-		cfg:     cfg,
-		me:      me,
-		logger:  logrus.WithField("adapter", "mixin").WithField("name", name),
+		name:         name,
+		convMap:      make(map[string]*mixin.Conversation),
+		userMap:      make(map[string]*mixin.User),
+		client:       client,
+		msgChan:      make(chan *service.Message),
+		cfg:          cfg,
+		me:           me,
+		logger:       logrus.WithField("adapter", "mixin").WithField("name", name),
+		messageCache: cache.New(time.Duration(cfg.MessageCacheExpiration)*time.Second, 10*time.Minute),
 	}, nil
 }
 
@@ -120,6 +132,11 @@ func (b *Bot) HandleResult(req *service.Message, r *service.Result) {
 		text = r.ConvTurn.Response
 	}
 
+	b.messageCache.Add(mq.MessageID, &Message{
+		Content: text,
+		UserID:  b.me.UserID,
+	}, cache.DefaultExpiration)
+
 	if conv.Category == mixin.ConversationCategoryGroup {
 		text = fmt.Sprintf("> @%s %s\n\n%s", user.IdentityNumber, req.Content, text)
 	}
@@ -153,6 +170,17 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 		return nil
 	}
 
+	data, err := base64.StdEncoding.DecodeString(msg.Data)
+	if err != nil {
+		return nil
+	}
+	content := string(data)
+	prefix := fmt.Sprintf("@%s", b.me.IdentityNumber)
+
+	b.messageCache.Add(msg.MessageID, &Message{
+		Content: strings.TrimPrefix(content, prefix),
+	}, cache.DefaultExpiration)
+
 	allowed := len(b.cfg.Whitelist) == 0
 	for _, id := range b.cfg.Whitelist {
 		if id == user.IdentityNumber || conv.ConversationID == id {
@@ -164,24 +192,29 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 		return nil
 	}
 
-	data, err := base64.StdEncoding.DecodeString(msg.Data)
-	if err != nil {
-		return nil
-	}
-
-	content := string(data)
-	prefix := fmt.Sprintf("@%s", b.me.IdentityNumber)
-
 	conversationKey := msg.ConversationID + ":" + msg.UserID
+
+	var quoteMessage *Message
+	if msg.QuoteMessageID != "" {
+		if v, ok := b.messageCache.Get(msg.QuoteMessageID); ok {
+			quoteMessage = v.(*Message)
+		}
+	}
 
 	// super group bot
 	if strings.HasPrefix(user.IdentityNumber, "700") {
-		if !strings.HasPrefix(content, prefix) || msg.RepresentativeID == "" {
-			return nil
+		if quoteMessage != nil && quoteMessage.UserID != b.me.UserID {
+			if !strings.HasPrefix(content, prefix) || msg.RepresentativeID == "" {
+				return nil
+			}
 		}
 		conversationKey = msg.ConversationID + ":" + msg.RepresentativeID
 	}
 
+	replyContent := ""
+	if quoteMessage != nil {
+		replyContent = quoteMessage.Content
+	}
 	content = strings.TrimSpace(strings.TrimPrefix(content, prefix))
 
 	ctx = context.WithValue(ctx, messageKey{}, msg)
@@ -193,6 +226,7 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 		Context:      ctx,
 		UserIdentity: msg.UserID,
 		ConvKey:      conversationKey,
+		ReplyContent: replyContent,
 		Content:      content,
 		DoneChan:     doneChan,
 	}

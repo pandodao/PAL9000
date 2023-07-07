@@ -43,7 +43,7 @@ func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 		}
 
 		// only text message
-		if m.Type != discordgo.MessageTypeDefault {
+		if m.Type != discordgo.MessageTypeDefault && m.Type != discordgo.MessageTypeReply {
 			return
 		}
 
@@ -60,21 +60,28 @@ func (b *Bot) GetMessageChan(ctx context.Context) <-chan *service.Message {
 		}
 
 		prefix := fmt.Sprintf("<@%s>", s.State.User.ID)
+
 		if m.GuildID != "" {
-			// return if not mentioned
-			if !strings.HasPrefix(m.Content, prefix) {
+			// return if not mentioned or not reply to bot
+			if !(strings.HasPrefix(m.Content, prefix) || (m.ReferencedMessage != nil && m.ReferencedMessage.Author.ID == s.State.User.ID)) {
 				return
 			}
 		}
-		m.Content = strings.TrimSpace(strings.TrimPrefix(m.Content, prefix))
 
+		replyContent := ""
+		if m.ReferencedMessage != nil {
+			replyContent = m.ReferencedMessage.Content
+		}
+
+		content := strings.TrimSpace(strings.TrimPrefix(m.Content, prefix))
 		ctx = context.WithValue(ctx, messageKey{}, m)
 		ctx = context.WithValue(ctx, sessionKey{}, s)
 
 		msgChan <- &service.Message{
 			Context:      ctx,
+			ReplyContent: replyContent,
 			UserIdentity: m.Author.ID,
-			Content:      m.Content,
+			Content:      content,
 			ConvKey:      m.ChannelID,
 		}
 	})
