@@ -203,7 +203,7 @@ func (b *Bot) run(ctx context.Context, msg *mixin.MessageView, userID string) er
 
 	// super group bot
 	if strings.HasPrefix(user.IdentityNumber, "700") {
-		if quoteMessage != nil && quoteMessage.UserID != b.me.UserID {
+		if quoteMessage == nil || quoteMessage.UserID != b.me.UserID {
 			if !strings.HasPrefix(content, prefix) || msg.RepresentativeID == "" {
 				return nil
 			}
