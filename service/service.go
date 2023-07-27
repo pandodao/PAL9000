@@ -3,11 +3,17 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/pandodao/PAL9000/config"
 	"github.com/pandodao/PAL9000/store"
 	"github.com/pandodao/botastic-go"
 	"github.com/sirupsen/logrus"
+)
+
+var (
+	linkRegex = regexp.MustCompile(`https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`)
 )
 
 type Adapter interface {
@@ -129,5 +135,37 @@ func (h *Handler) handleMessage(ctx context.Context, m *Message) (*botastic.Conv
 		return nil, fmt.Errorf("unexpected status: %d", turn.Status)
 	}
 
+	if h.cfg.Options.FormatLinks && turn.Response != "" {
+		turn.Response = formatLink(turn.Response)
+	}
+
 	return turn, nil
+}
+
+func formatLink(str string) string {
+	isSpace := func(c byte) bool {
+		return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+	}
+	matches := linkRegex.FindAllStringSubmatchIndex(str, -1)
+	var result strings.Builder
+	lastIdx := 0
+	for _, match := range matches {
+		start, end := match[0], match[1]
+		result.WriteString(str[lastIdx:start])
+
+		if start > 0 && !isSpace(str[start-1]) {
+			result.WriteString(" ")
+		}
+
+		result.WriteString(str[start:end])
+
+		if end < len(str) && !isSpace(str[end]) {
+			result.WriteString(" ")
+		}
+
+		lastIdx = end
+	}
+
+	result.WriteString(str[lastIdx:])
+	return result.String()
 }

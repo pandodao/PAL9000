@@ -30,6 +30,7 @@ type BotasticConfig struct {
 
 type GeneralOptionsConfig struct {
 	IgnoreIfError bool `yaml:"ignore_if_error"`
+	FormatLinks   bool `yaml:"format_links"`
 }
 
 type GeneralConfig struct {
